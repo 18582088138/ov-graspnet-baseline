@@ -75,13 +75,13 @@ class Pointnet2Backbone(nn.Module):
 
         return xyz, features
 
-    def forward(self, pointcloud: torch.cuda.FloatTensor, end_points=None):
+    def forward(self, point_clouds: torch.cuda.FloatTensor):
         r"""
             Forward pass of the network
 
             Parameters
             ----------
-            pointcloud: Variable(torch.cuda.FloatTensor)
+            point_clouds: Variable(torch.cuda.FloatTensor)
                 (B, N, 3 + input_feature_dim) tensor
                 Point cloud to run predicts on
                 Each point in the point-cloud MUST
@@ -94,38 +94,35 @@ class Pointnet2Backbone(nn.Module):
                 XXX_features: float32 Tensor of shape (B,D,K)
                 XXX_inds: int64 Tensor of shape (B,K) values in [0,N-1]
         """
-        if not end_points: end_points = {}
-        batch_size = pointcloud.shape[0]
-
-        xyz, features = self._break_up_pc(pointcloud)
-        end_points['input_xyz'] = xyz
-        end_points['input_features'] = features
-
+        batch_size = point_clouds.shape[0]
+        xyz, features = self._break_up_pc(point_clouds)
+        input_xyz = xyz
+        input_features = features
+        
         # --------- 4 SET ABSTRACTION LAYERS ---------
         xyz, features, fps_inds = self.sa1(xyz, features)
-        end_points['sa1_inds'] = fps_inds
-        end_points['sa1_xyz'] = xyz
-        end_points['sa1_features'] = features
+        sa1_inds = fps_inds
+        sa1_xyz = xyz
+        sa1_features = features
 
-        xyz, features, fps_inds = self.sa2(xyz, features) # this fps_inds is just 0,1,...,1023
-        end_points['sa2_inds'] = fps_inds
-        end_points['sa2_xyz'] = xyz
-        end_points['sa2_features'] = features
+        xyz, features, fps_inds = self.sa2(xyz, features)
+        sa2_inds = fps_inds
+        sa2_xyz = xyz
+        sa2_features = features
 
-        xyz, features, fps_inds = self.sa3(xyz, features) # this fps_inds is just 0,1,...,511
-        end_points['sa3_xyz'] = xyz
-        end_points['sa3_features'] = features
+        xyz, features, fps_inds = self.sa3(xyz, features)
+        sa3_xyz = xyz
+        sa3_features = features
 
-        xyz, features, fps_inds = self.sa4(xyz, features) # this fps_inds is just 0,1,...,255
-        end_points['sa4_xyz'] = xyz
-        end_points['sa4_features'] = features
-
+        xyz, features, fps_inds = self.sa4(xyz, features)
+        sa4_xyz = xyz
+        sa4_features = features
         # --------- 2 FEATURE UPSAMPLING LAYERS --------
-        features = self.fp1(end_points['sa3_xyz'], end_points['sa4_xyz'], end_points['sa3_features'], end_points['sa4_features'])
-        features = self.fp2(end_points['sa2_xyz'], end_points['sa3_xyz'], end_points['sa2_features'], features)
-        end_points['fp2_features'] = features
-        end_points['fp2_xyz'] = end_points['sa2_xyz']
-        num_seed = end_points['fp2_xyz'].shape[1]
-        end_points['fp2_inds'] = end_points['sa1_inds'][:,0:num_seed] # indices among the entire input point clouds
+        features = self.fp1(sa3_xyz, sa4_xyz, sa3_features, sa4_features)
+        features = self.fp2(sa2_xyz, sa3_xyz, sa2_features, features)
+        fp2_features = features
+        fp2_xyz = sa2_xyz
+        num_seed = fp2_xyz.shape[1]
+        fp2_inds = sa1_inds[:,0:num_seed]  # indices among the entire input point clouds
 
-        return features, end_points['fp2_xyz'], end_points
+        return fp2_features, fp2_xyz, input_xyz

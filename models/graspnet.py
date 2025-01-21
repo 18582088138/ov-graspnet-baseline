@@ -28,12 +28,10 @@ class GraspNetStage1(nn.Module):
         self.backbone = Pointnet2Backbone(input_feature_dim)
         self.vpmodule = ApproachNet(num_view, 256)
 
-    def forward(self, end_points):
-        pointcloud = end_points['point_clouds']
-        seed_features, seed_xyz, end_points = self.backbone(pointcloud, end_points)
-        end_points = self.vpmodule(seed_xyz, seed_features, end_points)
-        return end_points
-
+    def forward(self, point_clouds, cloud_colors):
+        seed_features, seed_xyz, input_xyz = self.backbone(point_clouds, cloud_colors)
+        objectness_score, grasp_top_view_xyz, grasp_top_view_rot = self.vpmodule(seed_xyz, seed_features)
+        return input_xyz, seed_xyz, objectness_score, grasp_top_view_xyz, grasp_top_view_rot
 
 class GraspNetStage2(nn.Module):
     def __init__(self, num_angle=12, num_depth=4, cylinder_radius=0.05, hmin=-0.02, hmax_list=[0.01,0.02,0.03,0.04], is_training=True):

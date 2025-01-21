@@ -38,7 +38,7 @@ class ApproachNet(nn.Module):
         self.bn1 = nn.BatchNorm1d(self.in_dim)
         self.bn2 = nn.BatchNorm1d(2+self.num_view)
 
-    def forward(self, seed_xyz, seed_features, end_points):
+    def forward(self, seed_xyz, seed_features):
         """ Forward pass.
 
             Input:
@@ -57,8 +57,6 @@ class ApproachNet(nn.Module):
         features = self.conv3(features)
         objectness_score = features[:, :2, :] # (B, 2, num_seed)
         view_score = features[:, 2:2+self.num_view, :].transpose(1,2).contiguous() # (B, num_seed, num_view)
-        end_points['objectness_score'] = objectness_score
-        end_points['view_score'] = view_score
 
         # print(view_score.min(), view_score.max(), view_score.mean())
         top_view_scores, top_view_inds = torch.max(view_score, dim=2) # (B, num_seed)
@@ -69,12 +67,13 @@ class ApproachNet(nn.Module):
         vp_xyz_ = vp_xyz.view(-1, 3)
         batch_angle = torch.zeros(vp_xyz_.size(0), dtype=vp_xyz.dtype, device=vp_xyz.device)
         vp_rot = batch_viewpoint_params_to_matrix(-vp_xyz_, batch_angle).view(B, num_seed, 3, 3)
-        end_points['grasp_top_view_inds'] = top_view_inds
-        end_points['grasp_top_view_score'] = top_view_scores
-        end_points['grasp_top_view_xyz'] = vp_xyz
-        end_points['grasp_top_view_rot'] = vp_rot
+        
+        grasp_top_view_inds = top_view_inds
+        grasp_top_view_score = top_view_scores
+        grasp_top_view_xyz = grasp_top_view_xyz
+        grasp_top_view_rot = vp_rot
 
-        return end_points
+        return objectness_score, grasp_top_view_xyz, grasp_top_view_rot
 
 
 class CloudCrop(nn.Module):
