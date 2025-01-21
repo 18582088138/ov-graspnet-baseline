@@ -165,7 +165,7 @@ class OperationNet(nn.Module):
         self.bn1 = nn.BatchNorm1d(128)
         self.bn2 = nn.BatchNorm1d(128)
 
-    def forward(self, vp_features, end_points):
+    def forward(self, vp_features):
         """ Forward pass.
 
             Input:
@@ -184,10 +184,10 @@ class OperationNet(nn.Module):
         vp_features = vp_features.view(B, -1, num_seed, num_depth)
 
         # split prediction
-        end_points['grasp_score_pred'] = vp_features[:, 0:self.num_angle]
-        end_points['grasp_angle_cls_pred'] = vp_features[:, self.num_angle:2*self.num_angle]
-        end_points['grasp_width_pred'] = vp_features[:, 2*self.num_angle:3*self.num_angle]
-        return end_points
+        grasp_score_pred = vp_features[:, 0:self.num_angle]
+        grasp_angle_cls_pred = vp_features[:, self.num_angle:2*self.num_angle]
+        grasp_width_pred = vp_features[:, 2*self.num_angle:3*self.num_angle]
+        return grasp_score_pred, grasp_angle_cls_pred, grasp_width_pred
 
     
 class ToleranceNet(nn.Module):
@@ -210,7 +210,7 @@ class ToleranceNet(nn.Module):
         self.bn1 = nn.BatchNorm1d(128)
         self.bn2 = nn.BatchNorm1d(128)
 
-    def forward(self, vp_features, end_points):
+    def forward(self, vp_features):
         """ Forward pass.
 
             Input:
@@ -227,5 +227,5 @@ class ToleranceNet(nn.Module):
         vp_features = F.relu(self.bn2(self.conv2(vp_features)), inplace=True)
         vp_features = self.conv3(vp_features)
         vp_features = vp_features.view(B, -1, num_seed, num_depth)
-        end_points['grasp_tolerance_pred'] = vp_features
-        return end_points
+        grasp_tolerance_pred = vp_features
+        return grasp_tolerance_pred
