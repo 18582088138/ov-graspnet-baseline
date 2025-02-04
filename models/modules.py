@@ -70,7 +70,7 @@ class ApproachNet(nn.Module):
         
         grasp_top_view_inds = top_view_inds
         grasp_top_view_score = top_view_scores
-        grasp_top_view_xyz = grasp_top_view_xyz
+        grasp_top_view_xyz = vp_xyz
         grasp_top_view_rot = vp_rot
 
         return objectness_score, grasp_top_view_xyz, grasp_top_view_rot

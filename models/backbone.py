@@ -68,10 +68,15 @@ class Pointnet2Backbone(nn.Module):
 
     def _break_up_pc(self, pc):
         xyz = pc[..., 0:3].contiguous()
-        features = (
-            pc[..., 3:].transpose(1, 2).contiguous()
-            if pc.size(-1) > 3 else None
-        )
+        # features = (
+        #     pc[..., 3:].transpose(1, 2).contiguous()
+        #     if pc.size(-1) > 3 else None
+        # )
+        if pc.size(-1) > 3:
+            features = pc[..., 3:].transpose(1, 2).contiguous()
+        else:
+            batch_size, num_points = pc.shape[:2]
+            features = torch.zeros(batch_size, 0, num_points, dtype=pc.dtype, device=pc.device)
 
         return xyz, features
 
@@ -117,6 +122,7 @@ class Pointnet2Backbone(nn.Module):
         xyz, features, fps_inds = self.sa4(xyz, features)
         sa4_xyz = xyz
         sa4_features = features
+
         # --------- 2 FEATURE UPSAMPLING LAYERS --------
         features = self.fp1(sa3_xyz, sa4_xyz, sa3_features, sa4_features)
         features = self.fp2(sa2_xyz, sa3_xyz, sa2_features, features)
@@ -124,5 +130,4 @@ class Pointnet2Backbone(nn.Module):
         fp2_xyz = sa2_xyz
         num_seed = fp2_xyz.shape[1]
         fp2_inds = sa1_inds[:,0:num_seed]  # indices among the entire input point clouds
-
         return fp2_features, fp2_xyz, input_xyz

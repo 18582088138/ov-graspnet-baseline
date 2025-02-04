@@ -251,19 +251,24 @@ class PointnetSAModuleVotes(nn.Module):
         new_features = self.mlp_module(
             grouped_features
         )  # (B, mlp[-1], npoint, nsample)
+
+        kernel_size=[1, int(new_features.size(3))]
+        # print("=====kernel_size======",self.pooling, kernel_size)
+
         if self.pooling == 'max':
             new_features = F.max_pool2d(
-                new_features, kernel_size=[1, new_features.size(3)]
+                new_features, kernel_size=kernel_size,
             )  # (B, mlp[-1], npoint, 1)
         elif self.pooling == 'avg':
             new_features = F.avg_pool2d(
-                new_features, kernel_size=[1, new_features.size(3)]
+                new_features, kernel_size=kernel_size,
             )  # (B, mlp[-1], npoint, 1)
         elif self.pooling == 'rbf': 
             # Use radial basis function kernel for weighted sum of features (normalized by nsample and sigma)
             # Ref: https://en.wikipedia.org/wiki/Radial_basis_function_kernel
             rbf = torch.exp(-1 * grouped_xyz.pow(2).sum(1,keepdim=False) / (self.sigma**2) / 2) # (B, npoint, nsample)
             new_features = torch.sum(new_features * rbf.unsqueeze(1), -1, keepdim=True) / float(self.nsample) # (B, mlp[-1], npoint, 1)
+            
         new_features = new_features.squeeze(-1)  # (B, mlp[-1], npoint)
 
         if not self.ret_unique_cnt:
@@ -391,7 +396,11 @@ class PointnetFPModule(nn.Module):
         """
 
         if known is not None:
-            dist, idx = pointnet2_utils.three_nn(unknown, known)
+            combined = pointnet2_utils.three_nn(unknown, known)
+            dist = combined[..., 0]
+            idx = combined[..., 1].int()
+            idx = idx.contiguous()
+
             dist_recip = 1.0 / (dist + 1e-8)
             norm = torch.sum(dist_recip, dim=2, keepdim=True)
             weight = dist_recip / norm
@@ -412,7 +421,6 @@ class PointnetFPModule(nn.Module):
 
         new_features = new_features.unsqueeze(-1)
         new_features = self.mlp(new_features)
-
         return new_features.squeeze(-1)
 
 class PointnetLFPModuleMSG(nn.Module):

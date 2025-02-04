@@ -28,10 +28,11 @@ class GraspNetStage1(nn.Module):
         self.backbone = Pointnet2Backbone(input_feature_dim)
         self.vpmodule = ApproachNet(num_view, 256)
 
-    def forward(self, point_clouds, cloud_colors):
-        fp2_features, fp2_xyz, input_xyz = self.backbone(point_clouds, cloud_colors)
-        objectness_score, grasp_top_view_xyz, grasp_top_view_rot = self.vpmodule(fp2_xyz, fp2_features)
-        return input_xyz, fp2_xyz, objectness_score, grasp_top_view_xyz, grasp_top_view_rot
+    def forward(self, point_clouds):
+        fp2_features, fp2_xyz, input_xyz = self.backbone(point_clouds)
+        return input_xyz, fp2_xyz, fp2_features
+        # objectness_score, grasp_top_view_xyz, grasp_top_view_rot = self.vpmodule(fp2_xyz, fp2_features)
+        # return input_xyz, fp2_xyz, objectness_score, grasp_top_view_xyz, grasp_top_view_rot
 
 class GraspNetStage2(nn.Module):
     def __init__(self, num_angle=12, num_depth=4, cylinder_radius=0.05, hmin=-0.02, hmax_list=[0.01,0.02,0.03,0.04], is_training=True):
@@ -65,12 +66,16 @@ class GraspNet(nn.Module):
         self.view_estimator = GraspNetStage1(input_feature_dim, num_view)
         self.grasp_generator = GraspNetStage2(num_angle, num_depth, cylinder_radius, hmin, hmax_list, is_training)
 
-    def forward(self, point_clouds, cloud_colors, end_points=None):
-        input_xyz, fp2_xyz, objectness_score, grasp_top_view_xyz, grasp_top_view_rot = self.view_estimator(point_clouds, cloud_colors)
-        if self.is_training:
-            end_points = process_grasp_labels(end_points)
-        grasp_score_pred, grasp_angle_cls_pred, grasp_width_pred, grasp_tolerance_pred = self.grasp_generator(input_xyz, fp2_xyz, grasp_top_view_rot)
-        return fp2_xyz, objectness_score, grasp_top_view_xyz, grasp_score_pred, grasp_angle_cls_pred, grasp_width_pred, grasp_tolerance_pred
+    def forward(self, point_clouds):
+        input_xyz, fp2_xyz, objectness_score = self.view_estimator(point_clouds)
+        return input_xyz, fp2_xyz, objectness_score
+
+    # def forward(self, point_clouds, end_points=None):
+    #     input_xyz, fp2_xyz, objectness_score, grasp_top_view_xyz, grasp_top_view_rot = self.view_estimator(point_clouds)
+    #     if self.is_training:
+    #         end_points = process_grasp_labels(end_points)
+    #     grasp_score_pred, grasp_angle_cls_pred, grasp_width_pred, grasp_tolerance_pred = self.grasp_generator(input_xyz, fp2_xyz, grasp_top_view_rot)
+    #     return fp2_xyz, objectness_score, grasp_top_view_xyz, grasp_score_pred, grasp_angle_cls_pred, grasp_width_pred, grasp_tolerance_pred
 
 def pred_decode(end_points):
     batch_size = len(end_points['point_clouds'])
