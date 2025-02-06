@@ -479,6 +479,10 @@ class GroupAll(nn.Module):
 
 class CylinderQuery(Function):
     @staticmethod
+    def symbolic(g: torch.Graph, radius: float, hmin: float, hmax: float, nsample: int, xyz: torch.Tensor, new_xyz: torch.Tensor, rot: torch.Tensor) -> torch.Tensor:
+        return g.op("custom_domain::CylinderQuery", new_xyz, xyz, rot, radius_f=radius, hmin_f=hmin, hmax_f=hmax, nsample_i=nsample)
+
+    @staticmethod
     def forward(ctx, radius, hmin, hmax, nsample, xyz, new_xyz, rot):
         # type: (Any, float, float, float, int, torch.Tensor, torch.Tensor, torch.Tensor) -> torch.Tensor
         r"""
@@ -510,7 +514,10 @@ class CylinderQuery(Function):
     def backward(ctx, a=None):
         return None, None, None, None, None, None, None
 
+def symbolic_cylinder_query_operation(g, radius, hmin, hmax, nsample, xyz, new_xyz, rot):
+    return g.op("custom_domain::CylinderQuery", new_xyz, xyz, rot, radius_f=radius, hmin_f=hmin, hmax_f=hmax, nsample_i=nsample)
 
+register_custom_op_symbolic('my_ops::CylinderQuery', symbolic_cylinder_query_operation, 11)
 cylinder_query = CylinderQuery.apply
 
 
@@ -561,7 +568,7 @@ class CylinderQueryAndGroup(nn.Module):
             (B, 3 + C, npoint, nsample) tensor
         """
         B, npoint, _ = new_xyz.size()
-        idx = cylinder_query(self.radius, self.hmin, self.hmax, self.nsample, xyz, new_xyz, rot.view(B, npoint, 11))
+        idx = cylinder_query(self.radius, self.hmin, self.hmax, self.nsample, xyz, new_xyz, rot.view(B, npoint, 9))
 
         if self.sample_uniformly:
             unique_cnt = torch.zeros((idx.shape[0], idx.shape[1]))

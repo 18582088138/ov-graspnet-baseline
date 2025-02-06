@@ -97,7 +97,35 @@ def get_and_process_data(data_dir):
 
     return end_points, cloud
 
-def demo(data_dir):
+def export_grasp_generator(data_dir):
+    net = get_net()
+    end_points, cloud = get_and_process_data(data_dir)
+    view_estimator = net.view_estimator
+    grasp_generator = net.grasp_generator
+    print("== end_points ==",end_points)
+    view_estimator_input = end_points['point_clouds']
+    with torch.no_grad():
+        input_xyz, fp2_xyz, objectness_score, grasp_top_view_xyz, grasp_top_view_rot = view_estimator(view_estimator_input)
+        grasp_generator_input = (input_xyz, fp2_xyz, grasp_top_view_rot)
+        print("== grasp_generator_input ==",grasp_generator(input_xyz, fp2_xyz, grasp_top_view_rot))
+
+    torch.onnx.export(
+        grasp_generator, 
+        grasp_generator_input,
+        'IR_model/grasp_generator.onnx',
+        input_names=['input_xyz', 'fp2_xyz', 'grasp_top_view_rot'],
+        opset_version=11,
+        do_constant_folding=True,
+        # export_params=True,
+        verbose=True,)
+    print("== export grasp_generator.onnx success ==")
+
+    # ov_model = ov.convert_model(net, example_input=end_points)
+    # serialize(ov_model, 'IR_model/ov_graspnet.xml')
+    # print("== export ov_graspnet IR success ==")
+
+
+def export_view_estimator(data_dir):
     net = get_net()
     end_points, cloud = get_and_process_data(data_dir)
     view_estimator = net.view_estimator
@@ -106,21 +134,17 @@ def demo(data_dir):
     view_estimator_input = end_points['point_clouds']
     torch.onnx.export(
         view_estimator, 
-        # end_points,
         view_estimator_input,
         'IR_model/view_estimator.onnx',
         input_names=['point_clouds'],
         opset_version=11,
         do_constant_folding=True,
-        export_params=True,
+        # export_params=True,
         verbose=True,)
-    print("== export graspnet.onnx success ==")
-
-    # ov_model = ov.convert_model(net, example_input=end_points)
-    # serialize(ov_model, 'IR_model/ov_graspnet.xml')
-    # print("== export ov_graspnet IR success ==")
+    print("== export view_estimator.onnx success ==")
 
 
 if __name__ == '__main__':
     data_dir = 'doc/example_data'
-    demo(data_dir)
+    export_view_estimator(data_dir)
+    export_grasp_generator(data_dir)

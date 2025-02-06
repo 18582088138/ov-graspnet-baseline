@@ -65,10 +65,6 @@ class GraspNet(nn.Module):
         self.view_estimator = GraspNetStage1(input_feature_dim, num_view)
         self.grasp_generator = GraspNetStage2(num_angle, num_depth, cylinder_radius, hmin, hmax_list, is_training)
 
-    # def forward(self, point_clouds):
-    #     input_xyz, fp2_xyz, objectness_score = self.view_estimator(point_clouds)
-    #     return input_xyz, fp2_xyz, objectness_score
-
     def forward(self, point_clouds, end_points=None):
         input_xyz, fp2_xyz, objectness_score, grasp_top_view_xyz, grasp_top_view_rot = self.view_estimator(point_clouds)
         if self.is_training:
