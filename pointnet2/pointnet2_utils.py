@@ -82,7 +82,7 @@ class FurthestPointSampling(Function):
 def symbolic_furthest_point_sampling(g, xyz, npoint_i):
     return g.op("custom_domain::FurthestPointSampling", xyz, npoint_i=npoint_i)
 
-register_custom_op_symbolic('my_ops::FurthestPointSampling', symbolic_furthest_point_sampling, 9)
+register_custom_op_symbolic('my_ops::FurthestPointSampling', symbolic_furthest_point_sampling, 11)
 
 furthest_point_sample = FurthestPointSampling.apply
 
@@ -126,7 +126,7 @@ class GatherOperation(Function):
 def symbolic_gather_operation(g, features, idx):
     return g.op("custom_domain::GatherOperation", features, idx)
 
-register_custom_op_symbolic('my_ops::GatherOperation', symbolic_gather_operation, 9)
+register_custom_op_symbolic('my_ops::GatherOperation', symbolic_gather_operation, 11)
 
 gather_operation = GatherOperation.apply
 
@@ -171,7 +171,7 @@ class ThreeNN(Function):
 def symbolic_three_nn_operation(g, unknown, known):
     return g.op("custom_domain::ThreeNN", unknown, known)
 
-register_custom_op_symbolic('my_ops::ThreeNN', symbolic_three_nn_operation, 9)
+register_custom_op_symbolic('my_ops::ThreeNN', symbolic_three_nn_operation, 11)
 
 three_nn = ThreeNN.apply
 
@@ -236,7 +236,7 @@ class ThreeInterpolate(Function):
 def symbolic_three_interpolate_oprtation(g, features, idx, weight):
     return g.op("custom_domain::ThreeInterpolate", features, idx, weight)
 
-register_custom_op_symbolic('my_ops::ThreeInterpolate', symbolic_three_interpolate_oprtation, 9)
+register_custom_op_symbolic('my_ops::ThreeInterpolate', symbolic_three_interpolate_oprtation, 11)
 
 three_interpolate = ThreeInterpolate.apply
 
@@ -295,7 +295,7 @@ class GroupingOperation(Function):
 def symbolic_grouping_operation(g, features, idx):
     return g.op("custom_domain::GroupingOperation", features, idx)
 
-register_custom_op_symbolic('my_ops::GroupingOperation', symbolic_grouping_operation, 9)
+register_custom_op_symbolic('my_ops::GroupingOperation', symbolic_grouping_operation, 11)
 
 grouping_operation = GroupingOperation.apply
 
@@ -338,7 +338,7 @@ class BallQuery(Function):
 def symbolic_ballquery_operation(g, radius, nsample, xyz, new_xyz):
     return g.op("custom_domain::BallQuery", new_xyz, xyz, radius_f=radius, nsample_i=nsample)
 
-register_custom_op_symbolic('my_ops::BallQuery', symbolic_ballquery_operation, 9)
+register_custom_op_symbolic('my_ops::BallQuery', symbolic_ballquery_operation, 11)
 
 ball_query = BallQuery.apply
 
@@ -561,7 +561,7 @@ class CylinderQueryAndGroup(nn.Module):
             (B, 3 + C, npoint, nsample) tensor
         """
         B, npoint, _ = new_xyz.size()
-        idx = cylinder_query(self.radius, self.hmin, self.hmax, self.nsample, xyz, new_xyz, rot.view(B, npoint, 9))
+        idx = cylinder_query(self.radius, self.hmin, self.hmax, self.nsample, xyz, new_xyz, rot.view(B, npoint, 11))
 
         if self.sample_uniformly:
             unique_cnt = torch.zeros((idx.shape[0], idx.shape[1]))

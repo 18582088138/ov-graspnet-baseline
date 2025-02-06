@@ -30,9 +30,9 @@ class GraspNetStage1(nn.Module):
 
     def forward(self, point_clouds):
         fp2_features, fp2_xyz, input_xyz = self.backbone(point_clouds)
-        return input_xyz, fp2_xyz, fp2_features
-        # objectness_score, grasp_top_view_xyz, grasp_top_view_rot = self.vpmodule(fp2_xyz, fp2_features)
-        # return input_xyz, fp2_xyz, objectness_score, grasp_top_view_xyz, grasp_top_view_rot
+        # return input_xyz, fp2_xyz, fp2_features
+        objectness_score, grasp_top_view_xyz, grasp_top_view_rot = self.vpmodule(fp2_xyz, fp2_features)
+        return input_xyz, fp2_xyz, objectness_score, grasp_top_view_xyz, grasp_top_view_rot
 
 class GraspNetStage2(nn.Module):
     def __init__(self, num_angle=12, num_depth=4, cylinder_radius=0.05, hmin=-0.02, hmax_list=[0.01,0.02,0.03,0.04], is_training=True):

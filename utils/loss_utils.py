@@ -65,6 +65,16 @@ def generate_grasp_views(N=300, phi=(np.sqrt(5)-1)/2, center=np.zeros(3), r=1):
     views = r * np.array(views) + center
     return torch.from_numpy(views.astype(np.float32))
 
+def manual_cross(axis_x, axis_y):
+    ax, ay, az = torch.unbind(axis_x, dim=-1)
+    bx, by, bz = torch.unbind(axis_y, dim=-1)
+
+    cx = ay * bz - az * by
+    cy = az * bx - ax * bz
+    cz = ax * by - ay * bx
+
+    return torch.stack((cx, cy, cz), dim=-1)
+
 def batch_viewpoint_params_to_matrix(batch_towards, batch_angle):
     """ Transform approach vectors and in-plane rotation angles to rotation matrices.
 
@@ -86,7 +96,8 @@ def batch_viewpoint_params_to_matrix(batch_towards, batch_angle):
     axis_y[mask_y,1] = 1
     axis_x = axis_x / torch.norm(axis_x, dim=-1, keepdim=True)
     axis_y = axis_y / torch.norm(axis_y, dim=-1, keepdim=True)
-    axis_z = torch.cross(axis_x, axis_y)
+    axis_z = manual_cross(axis_x, axis_y)
+    # axis_z = torch.cross(axis_x, axis_y)
     sin = torch.sin(batch_angle)
     cos = torch.cos(batch_angle)
     R1 = torch.stack([ones, zeros, zeros, zeros, cos, -sin, zeros, sin, cos], dim=-1)
