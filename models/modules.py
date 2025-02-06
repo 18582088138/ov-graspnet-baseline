@@ -133,9 +133,8 @@ class CloudCrop(nn.Module):
         vp_features = self.mlps(
             grouped_features
         ) # (batch_size, mlps[-1], num_seed*num_depth, nsample)
-        vp_features = F.max_pool2d(
-            vp_features, kernel_size=[1, vp_features.size(3)]
-        ) # (batch_size, mlps[-1], num_seed*num_depth, 1)
+        # vp_features = F.max_pool2d(vp_features, kernel_size=[1, vp_features.size(3)]) # Fix RuntimeError: Failed to export an ONNX attribute 'onnx::Gather', since it's not constant
+        vp_features = F.max_pool2d(vp_features, kernel_size=[1, int(vp_features.size(3))]) # (batch_size, mlps[-1], num_seed*num_depth, 1)
         vp_features = vp_features.view(B, -1, num_seed, num_depth)
         return vp_features
 
@@ -177,6 +176,7 @@ class OperationNet(nn.Module):
                 end_points: [dict]
         """
         B, _, num_seed, num_depth = vp_features.size()
+        print("===vp_features.size()====",vp_features.size())
         vp_features = vp_features.view(B, -1, num_seed*num_depth)
         vp_features = F.relu(self.bn1(self.conv1(vp_features)), inplace=True)
         vp_features = F.relu(self.bn2(self.conv2(vp_features)), inplace=True)
