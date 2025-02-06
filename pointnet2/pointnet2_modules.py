@@ -253,7 +253,7 @@ class PointnetSAModuleVotes(nn.Module):
         )  # (B, mlp[-1], npoint, nsample)
 
         kernel_size=[1, int(new_features.size(3))]
-        # print("=====kernel_size======",self.pooling, kernel_size)
+        # kernel_size=[1, new_features.size(3)]  # RuntimeError: Failed to export an ONNX attribute 'onnx::Gather', since it's not constant
 
         if self.pooling == 'max':
             new_features = F.max_pool2d(
