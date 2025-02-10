@@ -13,7 +13,7 @@ execute_process(
 
 find_package(OpenVINO REQUIRED PATHS "${OpenVINO_DIR_PY}")
 
-set(SRC furthest_point_sampling.cpp ov_extension.cpp)
+set(SRC identity.cpp furthest_point_sampling.cpp grouping_operation.cpp cylinder_query.cpp ov_extension.cpp)
 
 add_library(${TARGET_NAME} MODULE ${SRC})
 

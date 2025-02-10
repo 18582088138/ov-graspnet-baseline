@@ -25,6 +25,10 @@ from graspnet_dataset import GraspNetDataset
 from collision_detector import ModelFreeCollisionDetector
 from data_utils import CameraInfo, create_point_cloud_from_depth_image
 
+from openvino.runtime import Core
+from openvino.frontend.onnx import OpExtension
+from openvino.frontend import ConversionExtension, NodeContext
+
 parser = argparse.ArgumentParser()
 # parser.add_argument('--checkpoint_path', required=True, help='Model checkpoint path')
 parser.add_argument('--checkpoint_path', type=str, default="logs/log_kn/checkpoint.tar", help='Model checkpoint path')
@@ -97,7 +101,7 @@ def get_and_process_data(data_dir):
 
     return end_points, cloud
 
-def export_grasp_generator(data_dir):
+def export_onnx_grasp_generator(data_dir):
     net = get_net()
     end_points, cloud = get_and_process_data(data_dir)
     view_estimator = net.view_estimator
@@ -108,28 +112,76 @@ def export_grasp_generator(data_dir):
         input_xyz, fp2_xyz, objectness_score, grasp_top_view_xyz, grasp_top_view_rot = view_estimator(view_estimator_input)
         grasp_generator_input = (input_xyz, fp2_xyz, grasp_top_view_rot)
         print("== grasp_generator_input ==",grasp_generator(input_xyz, fp2_xyz, grasp_top_view_rot))
-
     torch.onnx.export(
         grasp_generator, 
         grasp_generator_input,
         'IR_model/grasp_generator.onnx',
         input_names=['input_xyz', 'fp2_xyz', 'grasp_top_view_rot'],
         opset_version=11,
-        do_constant_folding=True,
+        # do_constant_folding=True,
         # export_params=True,
-        verbose=True,)
+        custom_opsets={'custom_domain': 1}, # Use an empty string as the domain
+        # verbose=True,
+        )
     print("== export grasp_generator.onnx success ==")
 
-    # ov_model = ov.convert_model(net, example_input=end_points)
-    # serialize(ov_model, 'IR_model/ov_graspnet.xml')
-    # print("== export ov_graspnet IR success ==")
 
-
-def export_view_estimator(data_dir):
+def export_ov_grasp_generator(data_dir):
     net = get_net()
     end_points, cloud = get_and_process_data(data_dir)
     view_estimator = net.view_estimator
     grasp_generator = net.grasp_generator
+    view_estimator_input = end_points['point_clouds']
+    onnx_grasp_generator_path = 'IR_model/grasp_generator.onnx'
+    ov_extension_lib_path = 'ov_custom_op/build/libopenvino_operation_extension.so'
+
+    with torch.no_grad():
+        input_xyz, fp2_xyz, objectness_score, grasp_top_view_xyz, grasp_top_view_rot = view_estimator(view_estimator_input)
+        grasp_generator_input = (input_xyz, fp2_xyz, grasp_top_view_rot)
+    
+    core = Core()
+    core.add_extension(ov_extension_lib_path)
+
+    grouping_extension = OpExtension(
+        ov_type_name="GroupingOperation",  # OpenVINO中的操作类型名称
+        fw_type_name="custom_domain.GroupingOperation",  # 框架(ONNX)中的操作类型名称
+    )
+
+    cylinder_extension = OpExtension(
+        ov_type_name="GroupingOperation",  # OpenVINO中的操作类型名称
+        fw_type_name="custom_domain.GroupingOperation",  # 框架(ONNX)中的操作类型名称
+    )
+
+    # core.add_extension(OpExtension("custom_domain.FurthestPointSampling", "FurthestPointSampling"))
+    # core.add_extension(OpExtension("CylinderQuery", "custom_domain", "CylinderQuery"))
+    # core.add_extension(OpExtension("GroupingOperation", "custom_domain", "GroupingOperation"))
+
+
+    # core.add_extension(grouping_extension)
+    # core.add_extension(cylinder_extension)
+
+    """
+    TypeError: __init__(): incompatible constructor arguments. The following argument types are supported:
+    1. openvino._pyopenvino.OpExtension(fw_type_name: str, attr_names_map: Dict[str, str] = {}, attr_values_map: Dict[str, object] = {})
+    2. openvino._pyopenvino.OpExtension(ov_type_name: str, fw_type_name: str, attr_names_map: Dict[str, str] = {}, attr_values_map: Dict[str, object] = {})
+    3. openvino._pyopenvino.OpExtension(fw_type_name: str, in_names_vec: List[str], out_names_vec: List[str], attr_names_map: Dict[str, str] = {}, attr_values_map: Dict[str, object] = {})
+    4. openvino._pyopenvino.OpExtension(ov_type_name: str, fw_type_name: str, in_names_vec: List[str], out_names_vec: List[str], attr_names_map: Dict[str, str] = {}, attr_values_map: Dict[str, object] = {})
+    """
+    core.add_extension(OpExtension("CylinderQuery", "CylinderQuery", "custom_domain"))
+    core.add_extension(OpExtension("GroupingOperation", "GroupingOperation", "custom_domain"))
+
+
+    ov_model = core.read_model(onnx_grasp_generator_path)
+    ov_compiled_model = core.compile_model(ov_model, 'CPU')
+    serialize(ov_compiled_model, 'IR_model/ov_grasp_generator.xml')
+    print("== export ov_graspnet IR success ==")
+
+
+def export_onnx_view_estimator(data_dir):
+    net = get_net()
+    end_points, cloud = get_and_process_data(data_dir)
+    view_estimator = net.view_estimator
+    # grasp_generator = net.grasp_generator
     print("== end_points ==",end_points)
     view_estimator_input = end_points['point_clouds']
     torch.onnx.export(
@@ -144,7 +196,32 @@ def export_view_estimator(data_dir):
     print("== export view_estimator.onnx success ==")
 
 
+def export_ov_view_estimator(data_dir):
+    net = get_net()
+    end_points, cloud = get_and_process_data(data_dir)
+    view_estimator_input = end_points['point_clouds']
+    onnx_view_estimator_path = 'IR_model/view_estimator.onnx'
+    ov_extension_lib_path = 'ov_custom_op/build/libopenvino_operation_extension.so'
+    
+    core = Core()
+    core.add_extension(ov_extension_lib_path)
+    core.add_extension(OpExtension("custom_domain.FurthestPointSampling", "FurthestPointSampling"))
+    core.add_extension(OpExtension("CylinderQuery", "CylinderQuery","custom_domain"))
+    core.add_extension(OpExtension("GroupingOperation", "GroupingOperation","custom_domain"))
+    # ov_model = core.read_model(onnx_view_estimator_path)
+    # ov_compiled_model = core.compile_model(ov_model, 'CPU')
+    # serialize(ov_compiled_model, 'IR_model/ov_view_estimator.xml')
+    # print("== export ov_graspnet IR success ==")
+
+    fps_ext = ConversionExtension("FurthestPointSampling", "custom_domain.FurthestPointSampling")
+    ov_view_estimator_model = ov.convert_model(onnx_view_estimator_path, example_input=view_estimator_input, extension=[fps_ext])
+    serialize(ov_view_estimator_model, 'IR_model/ov_view_estimator.xml')
+    print("== export ov_graspnet IR success ==")
+
 if __name__ == '__main__':
     data_dir = 'doc/example_data'
-    export_view_estimator(data_dir)
-    export_grasp_generator(data_dir)
+    # export_onnx_view_estimator(data_dir)
+    # export_onnx_grasp_generator(data_dir)
+
+    export_ov_grasp_generator(data_dir)
+    # export_ov_view_estimator(data_dir)
