@@ -103,6 +103,7 @@ def batch_viewpoint_params_to_matrix(batch_towards, batch_angle):
     R1 = torch.stack([ones, zeros, zeros, zeros, cos, -sin, zeros, sin, cos], dim=-1)
     R1 = R1.reshape([-1,3,3])
     R2 = torch.stack([axis_x, axis_y, axis_z], dim=-1)
+    # batch_matrix = torch.matmul(R2, R1)
     batch_matrix = torch.matmul(R2, R1)
     return batch_matrix
 

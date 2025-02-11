@@ -29,6 +29,7 @@ class GraspNetStage1(nn.Module):
         self.vpmodule = ApproachNet(num_view, 256)
 
     def forward(self, point_clouds):
+        # breakpoint()
         fp2_features, fp2_xyz, input_xyz = self.backbone(point_clouds)
         objectness_score, grasp_top_view_xyz, grasp_top_view_rot = self.vpmodule(fp2_xyz, fp2_features)
         return input_xyz, fp2_xyz, objectness_score, grasp_top_view_xyz, grasp_top_view_rot
@@ -51,7 +52,7 @@ class GraspNetStage2(nn.Module):
         else:
             grasp_top_views_rot = grasp_top_view_rot
             seed_xyz = fp2_xyz
-
+        # breakpoint()
         vp_features = self.crop(seed_xyz, pointcloud, grasp_top_views_rot)
         grasp_score_pred, grasp_angle_cls_pred, grasp_width_pred = self.operation(vp_features)
         grasp_tolerance_pred = self.tolerance(vp_features)

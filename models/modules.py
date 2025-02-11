@@ -51,13 +51,14 @@ class ApproachNet(nn.Module):
             Output:
                 end_points: [dict]
         """
+        # breakpoint()
         B, num_seed, _ = seed_xyz.size()
         features = F.relu(self.bn1(self.conv1(seed_features)), inplace=True)
         features = F.relu(self.bn2(self.conv2(features)), inplace=True)
         features = self.conv3(features)
         objectness_score = features[:, :2, :] # (B, 2, num_seed)
         view_score = features[:, 2:2+self.num_view, :].transpose(1,2).contiguous() # (B, num_seed, num_view)
-
+        print("==== features.device====",features.device)
         # print(view_score.min(), view_score.max(), view_score.mean())
         top_view_scores, top_view_inds = torch.max(view_score, dim=2) # (B, num_seed)
         top_view_inds_ = top_view_inds.view(B, num_seed, 1, 1).expand(-1, -1, -1, 3).contiguous()
@@ -72,7 +73,6 @@ class ApproachNet(nn.Module):
         grasp_top_view_score = top_view_scores
         grasp_top_view_xyz = vp_xyz
         grasp_top_view_rot = vp_rot
-
         return objectness_score, grasp_top_view_xyz, grasp_top_view_rot
 
 

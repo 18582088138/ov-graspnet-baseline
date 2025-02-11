@@ -295,7 +295,7 @@ class GroupingOperation(Function):
 def symbolic_grouping_operation(g, features, idx):
     return g.op("custom_domain::GroupingOperation", features, idx)
 
-register_custom_op_symbolic('custom_domain::GroupingOperation', symbolic_grouping_operation, 11)
+register_custom_op_symbolic('my_ops::GroupingOperation', symbolic_grouping_operation, 11)
 
 grouping_operation = GroupingOperation.apply
 
@@ -517,7 +517,7 @@ class CylinderQuery(Function):
 def symbolic_cylinder_query_operation(g, radius, hmin, hmax, nsample, xyz, new_xyz, rot):
     return g.op("custom_domain::CylinderQuery", new_xyz, xyz, rot, radius_f=radius, hmin_f=hmin, hmax_f=hmax, nsample_i=nsample)
 
-register_custom_op_symbolic('custom_domain::CylinderQuery', symbolic_cylinder_query_operation, 11)
+register_custom_op_symbolic('my_ops::CylinderQuery', symbolic_cylinder_query_operation, 11)
 cylinder_query = CylinderQuery.apply
 
 
