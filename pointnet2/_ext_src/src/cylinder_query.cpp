@@ -56,7 +56,8 @@ void query_cylinder_point_kernel_cpu_wrapper(int b, int n, int m, float radius, 
     }
   }
 
-at::Tensor cylinder_query(at::Tensor new_xyz, at::Tensor xyz, at::Tensor rot, const float radius, const float hmin, const float hmax,
+at::Tensor cylinder_query(at::Tensor new_xyz, at::Tensor xyz, at::Tensor rot, 
+                      const float radius, const float hmin, const float hmax,
                       const int nsample) {
   CHECK_CONTIGUOUS(new_xyz);
   CHECK_CONTIGUOUS(xyz);

@@ -7,7 +7,7 @@
 using namespace TemplateExtension;
 
 //! [op:ctor]
-ThreeInterpolate::ThreeInterpolate(const ov::Output<ov::Node>& arg) : Op({arg}) {
+ThreeInterpolate::ThreeInterpolate(const ov::Output<ov::Node>& features, const ov::Output<ov::Node>& idx, const ov::Output<ov::Node>& weight) : Op({features, idx, weight}) {
     constructor_validate_and_infer_types();
 }
 //! [op:ctor]
@@ -21,9 +21,9 @@ void ThreeInterpolate::validate_and_infer_types() {
 
 //! [op:copy]
 std::shared_ptr<ov::Node> ThreeInterpolate::clone_with_new_inputs(const ov::OutputVector& new_args) const {
-    OPENVINO_ASSERT(new_args.size() == 1, "Incorrect number of new arguments");
+    // OPENVINO_ASSERT(new_args.size() == 1, "Incorrect number of new arguments");
 
-    return std::make_shared<ThreeInterpolate>(new_args.at(0));
+    return std::make_shared<ThreeInterpolate>(new_args.at(0), new_args.at(1), new_args.at(2));
 }
 //! [op:copy]
 
@@ -45,6 +45,6 @@ bool ThreeInterpolate::evaluate(ov::TensorVector& outputs, const ov::TensorVecto
 }
 
 bool ThreeInterpolate::has_evaluate() const {
-    return true;
+    return false;
 }
 //! [op:evaluate]

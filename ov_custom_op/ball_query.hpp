@@ -16,7 +16,7 @@ public:
     OPENVINO_OP("BallQuery");
 
     BallQuery() = default;
-    BallQuery(const ov::Output<ov::Node>& arg);
+    BallQuery(const ov::Output<ov::Node>& radius, const ov::Output<ov::Node>& nsample, const ov::Output<ov::Node>& xyz, const ov::Output<ov::Node>& new_xyz);
     void validate_and_infer_types() override;
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
     bool visit_attributes(ov::AttributeVisitor& visitor) override;

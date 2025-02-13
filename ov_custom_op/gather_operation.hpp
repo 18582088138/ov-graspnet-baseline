@@ -16,7 +16,7 @@ public:
     OPENVINO_OP("GatherOperation");
 
     GatherOperation() = default;
-    GatherOperation(const ov::Output<ov::Node>& arg);
+    GatherOperation(const ov::Output<ov::Node>& features, const ov::Output<ov::Node>& idx);
     void validate_and_infer_types() override;
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
     bool visit_attributes(ov::AttributeVisitor& visitor) override;

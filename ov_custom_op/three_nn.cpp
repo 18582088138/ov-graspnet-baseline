@@ -7,7 +7,7 @@
 using namespace TemplateExtension;
 
 //! [op:ctor]
-ThreeNN::ThreeNN(const ov::Output<ov::Node>& arg) : Op({arg}) {
+ThreeNN::ThreeNN(const ov::Output<ov::Node>& unknown, const ov::Output<ov::Node>& known) : Op({unknown, known}) {
     constructor_validate_and_infer_types();
 }
 //! [op:ctor]
@@ -16,14 +16,15 @@ ThreeNN::ThreeNN(const ov::Output<ov::Node>& arg) : Op({arg}) {
 void ThreeNN::validate_and_infer_types() {
     // Operation doesn't change shapes end element type
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    set_output_type(1, get_input_element_type(0), get_input_partial_shape(0));
 }
 //! [op:validate]
 
 //! [op:copy]
 std::shared_ptr<ov::Node> ThreeNN::clone_with_new_inputs(const ov::OutputVector& new_args) const {
-    OPENVINO_ASSERT(new_args.size() == 1, "Incorrect number of new arguments");
+    // OPENVINO_ASSERT(new_args.size() == 1, "Incorrect number of new arguments");
 
-    return std::make_shared<ThreeNN>(new_args.at(0));
+    return std::make_shared<ThreeNN>(new_args.at(0), new_args.at(1));
 }
 //! [op:copy]
 
@@ -45,6 +46,6 @@ bool ThreeNN::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs
 }
 
 bool ThreeNN::has_evaluate() const {
-    return true;
+    return false;
 }
 //! [op:evaluate]

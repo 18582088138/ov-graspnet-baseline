@@ -13,6 +13,7 @@ void group_points_kernel_wrapper(int b, int c, int n, int npoints, int nsample,
 void group_points_kernel_cpu_wrapper(int b, int c, int n, int npoints, int nsample,
                                  const float *points, const int *idx,
                                  float *out){
+    // std::cout << "========= group_points_kernel_cpu_wrapper =======" << std::endl;
     for (int batch_index = 0; batch_index < b; ++batch_index) {
       // 计算当前batch的偏移量
       const float *current_points = points + batch_index * n * c;

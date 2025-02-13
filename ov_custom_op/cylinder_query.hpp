@@ -14,10 +14,13 @@ namespace TemplateExtension {
 
 class CylinderQuery : public ov::op::Op {
 public:
-    OPENVINO_OP("CylinderQuery","custom_opset");
+    OPENVINO_OP("CylinderQuery");
 
     CylinderQuery() = default;
-    CylinderQuery(const ov::Output<ov::Node>& xyz, const ov::Output<ov::Node>& npoint) ;
+    CylinderQuery(const ov::Output<ov::Node>& new_xyz, const ov::Output<ov::Node>& xyz, 
+                const ov::Output<ov::Node>& rot, const ov::Output<ov::Node>& radius, 
+                const ov::Output<ov::Node>& hmin, const ov::Output<ov::Node>& hmax, 
+                const ov::Output<ov::Node>& nsample);
     void validate_and_infer_types() override;
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
     bool visit_attributes(ov::AttributeVisitor& visitor) override;

@@ -58,7 +58,6 @@ class ApproachNet(nn.Module):
         features = self.conv3(features)
         objectness_score = features[:, :2, :] # (B, 2, num_seed)
         view_score = features[:, 2:2+self.num_view, :].transpose(1,2).contiguous() # (B, num_seed, num_view)
-        print("==== features.device====",features.device)
         # print(view_score.min(), view_score.max(), view_score.mean())
         top_view_scores, top_view_inds = torch.max(view_score, dim=2) # (B, num_seed)
         top_view_inds_ = top_view_inds.view(B, num_seed, 1, 1).expand(-1, -1, -1, 3).contiguous()
@@ -101,7 +100,7 @@ class CloudCrop(nn.Module):
         self.groupers = []
         for hmax in hmax_list:
             self.groupers.append(CylinderQueryAndGroup(
-                cylinder_radius, hmin, hmax, nsample, use_xyz=True
+                torch.tensor(cylinder_radius), torch.tensor(hmin), torch.tensor(hmax), torch.tensor(nsample), use_xyz=True
             ))
         self.mlps = pt_utils.SharedMLP(mlps, bn=True)
 

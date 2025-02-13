@@ -16,7 +16,7 @@ public:
     OPENVINO_OP("ThreeNN");
 
     ThreeNN() = default;
-    ThreeNN(const ov::Output<ov::Node>& arg);
+    ThreeNN(const ov::Output<ov::Node>& unknown, const ov::Output<ov::Node>& known);
     void validate_and_infer_types() override;
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
     bool visit_attributes(ov::AttributeVisitor& visitor) override;

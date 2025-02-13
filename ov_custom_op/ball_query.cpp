@@ -7,7 +7,7 @@
 using namespace TemplateExtension;
 
 //! [op:ctor]
-BallQuery::BallQuery(const ov::Output<ov::Node>& arg) : Op({arg}) {
+BallQuery::BallQuery(const ov::Output<ov::Node>& radius, const ov::Output<ov::Node>& nsample, const ov::Output<ov::Node>& xyz, const ov::Output<ov::Node>& new_xyz) : Op({radius, nsample, xyz, new_xyz}) {
     constructor_validate_and_infer_types();
 }
 //! [op:ctor]
@@ -21,9 +21,9 @@ void BallQuery::validate_and_infer_types() {
 
 //! [op:copy]
 std::shared_ptr<ov::Node> BallQuery::clone_with_new_inputs(const ov::OutputVector& new_args) const {
-    OPENVINO_ASSERT(new_args.size() == 1, "Incorrect number of new arguments");
+    // OPENVINO_ASSERT(new_args.size() == 1, "Incorrect number of new arguments");
 
-    return std::make_shared<BallQuery>(new_args.at(0));
+    return std::make_shared<BallQuery>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
 }
 //! [op:copy]
 
@@ -45,6 +45,6 @@ bool BallQuery::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inpu
 }
 
 bool BallQuery::has_evaluate() const {
-    return true;
+    return false;
 }
 //! [op:evaluate]

@@ -7,7 +7,7 @@
 using namespace TemplateExtension;
 
 //! [op:ctor]
-CustomAdd::CustomAdd(const ov::Output<ov::Node>& arg) : Op({arg}) {
+CustomAdd::CustomAdd(const ov::Output<ov::Node>& x, const ov::Output<ov::Node>& y) : Op({x, y}) {
     constructor_validate_and_infer_types();
 }
 //! [op:ctor]
@@ -21,9 +21,9 @@ void CustomAdd::validate_and_infer_types() {
 
 //! [op:copy]
 std::shared_ptr<ov::Node> CustomAdd::clone_with_new_inputs(const ov::OutputVector& new_args) const {
-    OPENVINO_ASSERT(new_args.size() == 1, "Incorrect number of new arguments");
+    // OPENVINO_ASSERT(new_args.size() == 2, "Incorrect number of new arguments");
 
-    return std::make_shared<CustomAdd>(new_args.at(0));
+    return std::make_shared<CustomAdd>(new_args.at(0), new_args.at(1));
 }
 //! [op:copy]
 

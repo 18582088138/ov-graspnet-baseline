@@ -50,10 +50,11 @@ class RandomDropout(nn.Module):
 
 
 class FurthestPointSampling(Function):
-    @staticmethod
-    def symbolic(g: torch.Graph, xyz: torch.Tensor, npoint: int) -> torch.Tensor:
-        return g.op("custom_domain::FurthestPointSampling", xyz, npoint_i=npoint)
-
+    # @staticmethod
+    # def symbolic(g: torch.Graph, xyz: torch.Tensor, npoint: int) -> torch.Tensor:
+    #     return g.op("FurthestPointSampling", xyz, npoint_i=npoint)
+    #     # return g.op("custom_domain::FurthestPointSampling", xyz, npoint_i=npoint)
+    
     @staticmethod
     def forward(ctx, xyz, npoint):
         # type: (Any, torch.Tensor, int) -> torch.Tensor
@@ -79,17 +80,20 @@ class FurthestPointSampling(Function):
     def backward(xyz, a=None):
         return None, None
 
-def symbolic_furthest_point_sampling(g, xyz, npoint_i):
-    return g.op("custom_domain::FurthestPointSampling", xyz, npoint_i=npoint_i)
+# def symbolic_furthest_point_sampling(g, xyz, npoint_i):
+#     return g.op("FurthestPointSampling", xyz, npoint_i=npoint_i)
+#     # return g.op("custom_domain::FurthestPointSampling", xyz, npoint_i=npoint_i)
 
-register_custom_op_symbolic('my_ops::FurthestPointSampling', symbolic_furthest_point_sampling, 11)
+# register_custom_op_symbolic('FurthestPointSampling', symbolic_furthest_point_sampling, 11)
+# # register_custom_op_symbolic('my_ops::FurthestPointSampling', symbolic_furthest_point_sampling, 11)
 
 furthest_point_sample = FurthestPointSampling.apply
 
 class GatherOperation(Function):
-    @staticmethod
-    def symbolic(g: torch.Graph, features: torch.Tensor, idx: torch.Tensor) -> torch.Tensor:
-        return g.op("custom_domain::GatherOperation", features, idx)
+    # @staticmethod
+    # def symbolic(g: torch.Graph, features: torch.Tensor, idx: torch.Tensor) -> torch.Tensor:
+    #     # return g.op("custom_domain::GatherOperation", features, idx)
+    #     return g.op("GatherOperation", features, idx)
 
     @staticmethod
     def forward(ctx, features, idx):
@@ -123,19 +127,21 @@ class GatherOperation(Function):
         grad_features = _ext.gather_points_grad(grad_out.contiguous(), idx, N)
         return grad_features, None
 
-def symbolic_gather_operation(g, features, idx):
-    return g.op("custom_domain::GatherOperation", features, idx)
+# def symbolic_gather_operation(g, features, idx):
+#     return g.op("GatherOperation", features, idx)
+#     # return g.op("custom_domain::GatherOperation", features, idx)
 
-register_custom_op_symbolic('my_ops::GatherOperation', symbolic_gather_operation, 11)
+# register_custom_op_symbolic('GatherOperation', symbolic_gather_operation, 11)
+# # register_custom_op_symbolic('my_ops::GatherOperation', symbolic_gather_operation, 11)
 
 gather_operation = GatherOperation.apply
 
 
 class ThreeNN(Function):
-    @staticmethod
-    def symbolic(g: torch.Graph, unknown: torch.Tensor, known: torch.Tensor) -> torch.Tensor:
-        dist_out = g.op("custom_domain::ThreeNN", unknown, known)
-        return dist_out
+    # @staticmethod
+    # def symbolic(g: torch.Graph, unknown: torch.Tensor, known: torch.Tensor) -> torch.Tensor:
+    #     dist_out = g.op("custom_domain::ThreeNN", unknown, known)
+    #     return dist_out
 
     @staticmethod
     def forward(ctx, unknown, known):
@@ -168,18 +174,18 @@ class ThreeNN(Function):
     def backward(ctx, a=None, b=None):
         return None, None
 
-def symbolic_three_nn_operation(g, unknown, known):
-    return g.op("custom_domain::ThreeNN", unknown, known)
+# def symbolic_three_nn_operation(g, unknown, known):
+#     return g.op("custom_domain::ThreeNN", unknown, known)
 
-register_custom_op_symbolic('my_ops::ThreeNN', symbolic_three_nn_operation, 11)
+# register_custom_op_symbolic('my_ops::ThreeNN', symbolic_three_nn_operation, 11)
 
 three_nn = ThreeNN.apply
 
 
 class ThreeInterpolate(Function):
-    @staticmethod
-    def symbolic(g: torch.Graph, features: torch.Tensor, idx: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:
-        return g.op("custom_domain::ThreeInterpolate", features, idx, weight)
+    # @staticmethod
+    # def symbolic(g: torch.Graph, features: torch.Tensor, idx: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:
+    #     return g.op("custom_domain::ThreeInterpolate", features, idx, weight)
 
     @staticmethod
     def forward(ctx, features, idx, weight):
@@ -233,10 +239,10 @@ class ThreeInterpolate(Function):
 
         return grad_features, None, None
 
-def symbolic_three_interpolate_oprtation(g, features, idx, weight):
-    return g.op("custom_domain::ThreeInterpolate", features, idx, weight)
+# def symbolic_three_interpolate_oprtation(g, features, idx, weight):
+#     return g.op("custom_domain::ThreeInterpolate", features, idx, weight)
 
-register_custom_op_symbolic('my_ops::ThreeInterpolate', symbolic_three_interpolate_oprtation, 11)
+# register_custom_op_symbolic('my_ops::ThreeInterpolate', symbolic_three_interpolate_oprtation, 11)
 
 three_interpolate = ThreeInterpolate.apply
 
@@ -244,10 +250,14 @@ three_interpolate = ThreeInterpolate.apply
 class GroupingOperation(Function):
     @staticmethod
     def symbolic(g: torch.Graph, features: torch.Tensor, idx: torch.Tensor) -> torch.Tensor:
-        return g.op("custom_domain::GroupingOperation", features, idx)
+        return g.op("GroupingOperation", features, idx)
+        # return g.op("custom_domain::GroupingOperation", features, idx)
 
     @staticmethod
     def forward(ctx, features, idx):
+        # print("========GroupingOperation.forward=========")
+        # print("==== GroupingOperation features : === ", features.type(), features.size())
+        # print("==== GroupingOperation idx : === ", idx.type(), idx.size())
         # type: (Any, torch.Tensor, torch.Tensor) -> torch.Tensor
         r"""
 
@@ -267,7 +277,6 @@ class GroupingOperation(Function):
         _, C, N = features.size()
 
         ctx.for_backwards = (idx, N)
-
         return _ext.group_points(features, idx)
 
     @staticmethod
@@ -292,19 +301,21 @@ class GroupingOperation(Function):
 
         return grad_features, None
 
-def symbolic_grouping_operation(g, features, idx):
-    return g.op("custom_domain::GroupingOperation", features, idx)
+# def symbolic_grouping_operation(g, features, idx):
+#     return g.op("GroupingOperation", features, idx)
+#     # return g.op("custom_domain::GroupingOperation", features, idx)
 
-register_custom_op_symbolic('my_ops::GroupingOperation', symbolic_grouping_operation, 11)
+# # register_custom_op_symbolic('my_ops::GroupingOperation', symbolic_grouping_operation, 11)
+# register_custom_op_symbolic('GroupingOperation', symbolic_grouping_operation, 11)
 
 grouping_operation = GroupingOperation.apply
 
 
 class BallQuery(Function):
-    @staticmethod
-    def symbolic(g: torch.Graph, radius: float, nsample: int, xyz: torch.Tensor, new_xyz: torch.Tensor) -> torch.Tensor:
-        # return g.op("custom_domain::BallQuery", radius, nsample, xyz, new_xyz)
-        return g.op("custom_domain::BallQuery", new_xyz, xyz, radius_f=radius, nsample_i=nsample)
+    # @staticmethod
+    # def symbolic(g: torch.Graph, radius: float, nsample: int, xyz: torch.Tensor, new_xyz: torch.Tensor) -> torch.Tensor:
+    #     # return g.op("custom_domain::BallQuery", radius, nsample, xyz, new_xyz)
+    #     return g.op("BallQuery", new_xyz, xyz, radius_f=radius, nsample_i=nsample)
 
     @staticmethod
     def forward(ctx, radius, nsample, xyz, new_xyz):
@@ -335,10 +346,12 @@ class BallQuery(Function):
     def backward(ctx, a=None):
         return None, None, None, None
 
-def symbolic_ballquery_operation(g, radius, nsample, xyz, new_xyz):
-    return g.op("custom_domain::BallQuery", new_xyz, xyz, radius_f=radius, nsample_i=nsample)
+# def symbolic_ballquery_operation(g, radius, nsample, xyz, new_xyz):
+#     return g.op("BallQuery", new_xyz, xyz, radius_f=radius, nsample_i=nsample)
+#     # return g.op("custom_domain::BallQuery", new_xyz, xyz, radius_f=radius, nsample_i=nsample)
 
-register_custom_op_symbolic('my_ops::BallQuery', symbolic_ballquery_operation, 11)
+# # register_custom_op_symbolic('my_ops::BallQuery', symbolic_ballquery_operation, 11)
+# register_custom_op_symbolic('BallQuery', symbolic_ballquery_operation, 11)
 
 ball_query = BallQuery.apply
 
@@ -479,11 +492,15 @@ class GroupAll(nn.Module):
 
 class CylinderQuery(Function):
     @staticmethod
-    def symbolic(g: torch.Graph, radius: float, hmin: float, hmax: float, nsample: int, xyz: torch.Tensor, new_xyz: torch.Tensor, rot: torch.Tensor) -> torch.Tensor:
-        return g.op("custom_domain::CylinderQuery", new_xyz, xyz, rot, radius_f=radius, hmin_f=hmin, hmax_f=hmax, nsample_i=nsample)
-
+    def symbolic(g: torch.Graph, new_xyz: torch.Tensor, xyz: torch.Tensor, rot: torch.Tensor, radius: torch.Tensor, hmin: torch.Tensor, hmax: torch.Tensor, nsample: torch.Tensor) -> torch.Tensor:
+        # 将radius, hmin, hmax, nsample 设置为Tensor，不然OpenVINO 无法trace， 
+        # Error ： Type 'Tuple[Tensor, Tensor, Tensor, float, float, float]' cannot be traced. Only Tensors and (possibly nested) Lists, Dicts, and Tuples of Tensors can be traced
+        # # return g.op("CylinderQuery", new_xyz, xyz, rot, radius_f=radius, hmin_f=hmin, hmax_f=hmax, nsample_i=nsample)
+        return g.op("CylinderQuery", new_xyz, xyz, rot, radius, hmin, hmax, nsample)
+    
     @staticmethod
-    def forward(ctx, radius, hmin, hmax, nsample, xyz, new_xyz, rot):
+    def forward(ctx, new_xyz, xyz, rot, radius, hmin, hmax, nsample):
+    # def forward(ctx, radius, hmin, hmax, nsample, xyz, new_xyz, rot):
         # type: (Any, float, float, float, int, torch.Tensor, torch.Tensor, torch.Tensor) -> torch.Tensor
         r"""
 
@@ -502,22 +519,24 @@ class CylinderQuery(Function):
         rot: torch.Tensor
             (B, npoint, 9) flatten rotation matrices from
                            cylinder frame to world frame
-
         Returns
         -------
         torch.Tensor
             (B, npoint, nsample) tensor with the indicies of the features that form the query balls
         """
+        ctx.save_for_backward(new_xyz, xyz, rot)
+        # radius.item(), hmin.item(), hmax.item(), nsample.item()
         return _ext.cylinder_query(new_xyz, xyz, rot, radius, hmin, hmax, nsample)
 
     @staticmethod
     def backward(ctx, a=None):
         return None, None, None, None, None, None, None
 
-def symbolic_cylinder_query_operation(g, radius, hmin, hmax, nsample, xyz, new_xyz, rot):
-    return g.op("custom_domain::CylinderQuery", new_xyz, xyz, rot, radius_f=radius, hmin_f=hmin, hmax_f=hmax, nsample_i=nsample)
+# def symbolic_cylinder_query_operation(g, radius, hmin, hmax, nsample, xyz, new_xyz, rot):
+#     return g.op("custom_domain::CylinderQuery", new_xyz, xyz, rot, radius_f=radius, hmin_f=hmin, hmax_f=hmax, nsample_i=nsample)
 
-register_custom_op_symbolic('my_ops::CylinderQuery', symbolic_cylinder_query_operation, 11)
+# register_custom_op_symbolic('my_ops::CylinderQuery', symbolic_cylinder_query_operation, 11)
+
 cylinder_query = CylinderQuery.apply
 
 
@@ -568,8 +587,8 @@ class CylinderQueryAndGroup(nn.Module):
             (B, 3 + C, npoint, nsample) tensor
         """
         B, npoint, _ = new_xyz.size()
-        idx = cylinder_query(self.radius, self.hmin, self.hmax, self.nsample, xyz, new_xyz, rot.view(B, npoint, 9))
-
+        idx = cylinder_query(new_xyz, xyz, rot.view(B, npoint, 9), self.radius, self.hmin, self.hmax, self.nsample)
+        # idx = cylinder_query(self.radius, self.hmin, self.hmax, self.nsample, xyz, new_xyz, rot.view(B, npoint, 9))
         if self.sample_uniformly:
             unique_cnt = torch.zeros((idx.shape[0], idx.shape[1]))
             for i_batch in range(idx.shape[0]):

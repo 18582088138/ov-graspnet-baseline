@@ -7,7 +7,7 @@
 using namespace TemplateExtension;
 
 //! [op:ctor]
-GatherOperation::GatherOperation(const ov::Output<ov::Node>& arg) : Op({arg}) {
+GatherOperation::GatherOperation(const ov::Output<ov::Node>& features, const ov::Output<ov::Node>& idx) : Op({features, idx}) {
     constructor_validate_and_infer_types();
 }
 //! [op:ctor]
@@ -21,9 +21,9 @@ void GatherOperation::validate_and_infer_types() {
 
 //! [op:copy]
 std::shared_ptr<ov::Node> GatherOperation::clone_with_new_inputs(const ov::OutputVector& new_args) const {
-    OPENVINO_ASSERT(new_args.size() == 1, "Incorrect number of new arguments");
+    // OPENVINO_ASSERT(new_args.size() == 1, "Incorrect number of new arguments");
 
-    return std::make_shared<GatherOperation>(new_args.at(0));
+    return std::make_shared<GatherOperation>(new_args.at(0), new_args.at(1));
 }
 //! [op:copy]
 
@@ -45,6 +45,6 @@ bool GatherOperation::evaluate(ov::TensorVector& outputs, const ov::TensorVector
 }
 
 bool GatherOperation::has_evaluate() const {
-    return true;
+    return false;
 }
 //! [op:evaluate]

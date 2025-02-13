@@ -16,7 +16,7 @@ public:
     OPENVINO_OP("ThreeInterpolate");
 
     ThreeInterpolate() = default;
-    ThreeInterpolate(const ov::Output<ov::Node>& arg);
+    ThreeInterpolate(const ov::Output<ov::Node>& features, const ov::Output<ov::Node>& idx, const ov::Output<ov::Node>& weight);
     void validate_and_infer_types() override;
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
