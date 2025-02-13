@@ -31,7 +31,6 @@ void CylinderQuery::validate_and_infer_types() {
     rot: torch.Tensor
         (B, npoint, 9) flatten rotation matrices from
                         cylinder frame to world frame
-
     Returns
     -------
     torch.Tensor

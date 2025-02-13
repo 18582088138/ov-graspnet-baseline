@@ -15,7 +15,27 @@ GatherOperation::GatherOperation(const ov::Output<ov::Node>& features, const ov:
 //! [op:validate]
 void GatherOperation::validate_and_infer_types() {
     // Operation doesn't change shapes end element type
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    /*
+    Parameters
+    ----------
+    features : torch.Tensor
+        (B, C, N) tensor
+
+    idx : torch.Tensor
+        (B, npoint) tensor of the features to gather
+
+    Returns
+    -------
+    torch.Tensor
+        (B, C, npoint) tensor
+    */
+    const auto& features_input = input(0);
+    const auto& idx_input = input(1);
+
+    auto features_shape = features_input.get_partial_shape();
+    auto idx_shape = idx_input.get_partial_shape();
+    ov::PartialShape output_shape = {features_shape[0], features_shape[1], idx_shape[1]};
+    set_output_type(0, features_input.get_element_type(), output_shape);
 }
 //! [op:validate]
 
@@ -35,16 +55,46 @@ bool GatherOperation::visit_attributes(ov::AttributeVisitor& visitor) {
 
 //! [op:evaluate]
 bool GatherOperation::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
-    const auto& in = inputs[0];
-    auto& out = outputs[0];
-    if (out.data() == in.data())  // Nothing to do
-        return true;
-    out.set_shape(in.get_shape());
-    memcpy(out.data(), in.data(), in.get_byte_size());
+    const float* features = inputs[0].data<const float>();
+    const int* idx = inputs[1].data<const int>();
+
+    int b = inputs[0].get_shape()[0]; // batch size
+    int c = inputs[0].get_shape()[1]; // channels
+    int n = inputs[0].get_shape()[2]; // number of points
+    int npoints = inputs[1].get_shape()[1]; // number of points to gather
+    int nsample = inputs[1].get_shape()[2]; // number of samples
+
+    auto& out_tensor = outputs[0];
+    float* out_data = out_tensor.data<float>();
+
+    for (int batch_index = 0; batch_index < b; ++batch_index) {
+      // 计算当前batch的偏移量
+      const float *current_points = features + batch_index * n * c;
+      const int *current_idx = idx + batch_index * npoints * nsample;
+      float *current_out = out_data + batch_index * npoints * nsample * c;
+
+      // 对于每个通道c和每个采样点npoints进行迭代
+      for (int l = 0; l < c; ++l) { // 遍历每个通道
+        for (int j = 0; j < npoints; ++j) { // 遍历每个采样点
+          for (int k = 0; k < nsample; ++k) { // 对于每个样本点的nsample个邻居
+            int ii = current_idx[j * nsample + k]; // 获取对应原始点的索引
+            if(ii >= 0 && ii < n) { // 确保索引有效
+              current_out[(l * npoints + j) * nsample + k] = current_points[l * n + ii];
+            } else {
+              // 如果索引无效，则可以设置一个默认值或者抛出异常等处理方式
+              current_out[(l * npoints + j) * nsample + k] = 0.0f; // 这里简单地设置为0.0
+            }
+          }
+        }
+      }
+    }
+
+    // out.set_shape(in.get_shape());
+    // memcpy(out.data(), in.data(), in.get_byte_size());
     return true;
 }
 
 bool GatherOperation::has_evaluate() const {
-    return false;
+    return true;
 }
 //! [op:evaluate]

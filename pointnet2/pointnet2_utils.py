@@ -50,10 +50,10 @@ class RandomDropout(nn.Module):
 
 
 class FurthestPointSampling(Function):
-    # @staticmethod
+    @staticmethod
     # def symbolic(g: torch.Graph, xyz: torch.Tensor, npoint: int) -> torch.Tensor:
-    #     return g.op("FurthestPointSampling", xyz, npoint_i=npoint)
-    #     # return g.op("custom_domain::FurthestPointSampling", xyz, npoint_i=npoint)
+    def symbolic(g: torch.Graph, xyz: torch.Tensor, npoint: torch.Tensor) -> torch.Tensor:
+        return g.op("FurthestPointSampling", xyz, npoint)
     
     @staticmethod
     def forward(ctx, xyz, npoint):
@@ -90,10 +90,10 @@ class FurthestPointSampling(Function):
 furthest_point_sample = FurthestPointSampling.apply
 
 class GatherOperation(Function):
-    # @staticmethod
-    # def symbolic(g: torch.Graph, features: torch.Tensor, idx: torch.Tensor) -> torch.Tensor:
-    #     # return g.op("custom_domain::GatherOperation", features, idx)
-    #     return g.op("GatherOperation", features, idx)
+    @staticmethod
+    def symbolic(g: torch.Graph, features: torch.Tensor, idx: torch.Tensor) -> torch.Tensor:
+        # return g.op("custom_domain::GatherOperation", features, idx)
+        return g.op("GatherOperation", features, idx)
 
     @staticmethod
     def forward(ctx, features, idx):
@@ -138,10 +138,9 @@ gather_operation = GatherOperation.apply
 
 
 class ThreeNN(Function):
-    # @staticmethod
-    # def symbolic(g: torch.Graph, unknown: torch.Tensor, known: torch.Tensor) -> torch.Tensor:
-    #     dist_out = g.op("custom_domain::ThreeNN", unknown, known)
-    #     return dist_out
+    @staticmethod
+    def symbolic(g: torch.Graph, unknown: torch.Tensor, known: torch.Tensor) -> torch.Tensor:
+        return  g.op("ThreeNN", unknown, known)
 
     @staticmethod
     def forward(ctx, unknown, known):
@@ -183,9 +182,9 @@ three_nn = ThreeNN.apply
 
 
 class ThreeInterpolate(Function):
-    # @staticmethod
-    # def symbolic(g: torch.Graph, features: torch.Tensor, idx: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:
-    #     return g.op("custom_domain::ThreeInterpolate", features, idx, weight)
+    @staticmethod
+    def symbolic(g: torch.Graph, features: torch.Tensor, idx: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:
+        return g.op("ThreeInterpolate", features, idx, weight)
 
     @staticmethod
     def forward(ctx, features, idx, weight):
@@ -255,9 +254,6 @@ class GroupingOperation(Function):
 
     @staticmethod
     def forward(ctx, features, idx):
-        # print("========GroupingOperation.forward=========")
-        # print("==== GroupingOperation features : === ", features.type(), features.size())
-        # print("==== GroupingOperation idx : === ", idx.type(), idx.size())
         # type: (Any, torch.Tensor, torch.Tensor) -> torch.Tensor
         r"""
 
@@ -312,10 +308,11 @@ grouping_operation = GroupingOperation.apply
 
 
 class BallQuery(Function):
-    # @staticmethod
+    @staticmethod
     # def symbolic(g: torch.Graph, radius: float, nsample: int, xyz: torch.Tensor, new_xyz: torch.Tensor) -> torch.Tensor:
-    #     # return g.op("custom_domain::BallQuery", radius, nsample, xyz, new_xyz)
-    #     return g.op("BallQuery", new_xyz, xyz, radius_f=radius, nsample_i=nsample)
+    #    return g.op("BallQuery", new_xyz, xyz, radius_f=radius, nsample_i=nsample)
+    def symbolic(g: torch.Graph, radius: torch.Tensor, nsample: torch.Tensor, xyz: torch.Tensor, new_xyz: torch.Tensor) -> torch.Tensor:
+        return g.op("BallQuery", new_xyz, xyz, radius, nsample)
 
     @staticmethod
     def forward(ctx, radius, nsample, xyz, new_xyz):
@@ -396,7 +393,7 @@ class QueryAndGroup(nn.Module):
         new_features : torch.Tensor
             (B, 3 + C, npoint, nsample) tensor
         """
-        idx = ball_query(self.radius, self.nsample, xyz, new_xyz)
+        idx = ball_query(torch.tensor(self.radius), torch.tensor(self.nsample), xyz, new_xyz)
 
         if self.sample_uniformly:
             unique_cnt = torch.zeros((idx.shape[0], idx.shape[1]))

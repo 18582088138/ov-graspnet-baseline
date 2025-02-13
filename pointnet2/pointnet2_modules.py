@@ -54,7 +54,7 @@ class _PointnetSAModuleBase(nn.Module):
         xyz_flipped = xyz.transpose(1, 2).contiguous()
         new_xyz = pointnet2_utils.gather_operation(
             xyz_flipped,
-            pointnet2_utils.furthest_point_sample(xyz, self.npoint)
+            pointnet2_utils.furthest_point_sample(xyz, torch.tensor(self.npoint))
         ).transpose(1, 2).contiguous() if self.npoint is not None else None
 
         for i in range(len(self.groupers)):
@@ -232,7 +232,7 @@ class PointnetSAModuleVotes(nn.Module):
 
         xyz_flipped = xyz.transpose(1, 2).contiguous()
         if inds is None:
-            inds = pointnet2_utils.furthest_point_sample(xyz, self.npoint)
+            inds = pointnet2_utils.furthest_point_sample(xyz, torch.tensor(self.npoint))
         else:
             assert(inds.shape[1] == self.npoint)
         new_xyz = pointnet2_utils.gather_operation(
@@ -336,7 +336,7 @@ class PointnetSAModuleMSGVotes(nn.Module):
 
         xyz_flipped = xyz.transpose(1, 2).contiguous()
         if inds is None:
-            inds = pointnet2_utils.furthest_point_sample(xyz, self.npoint)
+            inds = pointnet2_utils.furthest_point_sample(xyz, torch.tensor(self.npoint))
         new_xyz = pointnet2_utils.gather_operation(
             xyz_flipped, inds
         ).transpose(1, 2).contiguous() if self.npoint is not None else None

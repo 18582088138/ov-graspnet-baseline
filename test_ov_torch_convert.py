@@ -151,13 +151,20 @@ def export_ov_graspnet(data_dir):
     torch.save(view_estimator, 'IR_model/view_estimator.pth')
     torch.save(view_estimator.state_dict(), 'IR_model/view_estimator_state_dict.pth')
     print("==== export view_estimator.onnx success ====")
-    
+    for name, param in view_estimator.named_parameters():
+        print(f"Layer: {name} | Size: {param.size()}")
+    print(view_estimator)
     print("=======Try convert torch view_estimator=======")
     view_estimator_input_name =  {'point_clouds':([1, 20000, 3])}
     print("======view_estimator_input=======",view_estimator_input, view_estimator_input.shape, view_estimator_input.type())
-    view_estimator_example_input = {'point_clouds': torch.randn([1, 20000, 3], dtype=torch.float32)}
+    view_estimator_ov_input = {'point_clouds': torch.randn([1, 20000, 3], dtype=torch.float32)}
     # view_estimator_example_input = (view_estimator_input.cpu())
-    ov.convert_model(view_estimator, input=view_estimator_input_name, example_input=view_estimator_example_input, extension=ov_extension_lib_path)
+    # ov.convert_model(view_estimator, 
+    #                  input=view_estimator_input_name, 
+    #                  example_input=view_estimator_ov_input, 
+    #                  extension=ov_extension_lib_path,
+    #                  verbose=True,
+    #                  )
     print("=======Convert torch view_estimator success=======")
 
    
@@ -167,9 +174,9 @@ def export_ov_graspnet(data_dir):
         grasp_generator_input,
         'IR_model/grasp_generator.onnx',
         input_names=['input_xyz', 'fp2_xyz', 'grasp_top_view_rot'],
-        opset_version=11,
+        # opset_version=11,
         # do_constant_folding=True,
-        # export_params=True,
+        export_params=True,
         # custom_opsets={'custom_domain': 1}, # Use an empty string as the domain
         # verbose=True,
         )
@@ -178,11 +185,31 @@ def export_ov_graspnet(data_dir):
     print("==== export grasp_generator.onnx success ====")
 
     print("=======Try convert torch grasp_generator=======")
+    print(grasp_generator)
     grasp_generator_input_name = ['input_xyz', 'fp2_xyz', 'grasp_top_view_rot']
     grasp_generator_example_input = {'input_xyz':input_xyz.cpu(), 
                                      'fp2_xyz':fp2_xyz.cpu(), 
                                      'grasp_top_view_rot':grasp_top_view_rot.cpu()}
-    # ov.convert_model(grasp_generator, input=grasp_generator_input_name, example_input=grasp_generator_example_input, extension=ov_extension_lib_path)
+    # print("======grasp_generator_input, input_xyz=======", input_xyz.shape, input_xyz.type())
+    # print("======grasp_generator_input, fp2_xyz=======", fp2_xyz.shape, fp2_xyz.type())
+    # print("======grasp_generator_input, grasp_top_view_rot=======", grasp_top_view_rot.shape, grasp_top_view_rot.type())
+
+    grasp_generator_input_name = {'input_xyz': ([1, 20000, 3]),
+                                  'fp2_xyz': ([1, 1024, 3]),
+                                  'grasp_top_view_rot': ([1, 1024, 3, 3])}
+    ov_grasp_generator = ov.convert_model(
+                                          grasp_generator, 
+                                        #   'IR_model/grasp_generator.onnx',
+                                          input=grasp_generator_input_name, 
+                                          example_input=grasp_generator_example_input, 
+                                          extension=ov_extension_lib_path,
+                                          verbose=True,
+                                          )
+    # ov_model = core.read_model('IR_model/grasp_generator.onnx')
+    ov_compiled_model = core.compile_model(ov_grasp_generator, 'CPU')
+    print("======= Compile ov_grasp_generator success=======")
+
+    serialize(ov_grasp_generator, 'IR_model/ov_grasp_generator.xml')
     print("=======Convert torch grasp_generator success=======")
     
 if __name__ == '__main__':

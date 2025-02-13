@@ -13,15 +13,24 @@ FurthestPointSampling::FurthestPointSampling(const ov::Output<ov::Node>& xyz, co
 //! [op:validate]
 void FurthestPointSampling::validate_and_infer_types() {
     // Operation doesn't change shapes end element type
-    // const auto& xyz_input = input(0);
-    // const auto& npoint_input = input(1);
-    // auto npoint_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(npoint_input.get_source_output().get_node_shared_ptr());
-    // int64_t npoint = npoint_const->cast_vector<int64_t>()[0];
-    // auto xyz_shape = xyz_input.get_partial_shape();
-    // ov::PartialShape output_shape = {xyz_shape[0], npoint};
-    // set_output_type(0, xyz_input.get_element_type(), output_shape);
+    /*
+    Parameters
+    ----------
+    xyz : torch.Tensor
+        (B, N, 3) tensor where N > npoint
+    npoint : int32
+        number of features in the sampled set
 
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    Returns
+    -------
+    torch.Tensor
+        (B, npoint) tensor containing the set
+    */
+    const auto& xyz = input(0);
+    int npoint = 2048;
+    auto xyz_shape = xyz.get_partial_shape();
+    ov::PartialShape output_shape = {xyz_shape[0], npoint};
+    set_output_type(0, ov::element::i32, output_shape);
 }
 //! [op:validate]
 
@@ -40,50 +49,64 @@ bool FurthestPointSampling::visit_attributes(ov::AttributeVisitor& visitor) {
 
 //! [op:evaluate]
 bool FurthestPointSampling::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
-    // const auto& in_xyz = inputs[0];
-    // const auto& in_npoint = inputs[1];
-    // auto& out = outputs[0];
-    // size_t batch_size = in_xyz.get_shape()[0];
-    // size_t n_points = in_xyz.get_shape()[1];
-    // for (size_t b = 0; b < batch_size; ++b) {
-    //     // get currebnt batch data
-    //     const float* dataset = in_xyz.data<const float>() + b * n_points * 3;
-    //     int npoint = *in_npoint.data<const int>() + b; // Get the npoint value of the current batch
-    //     int* resultIndices = out.data<int>() + b * npoint;
-    //     // Add the first point to the result set
-    //     resultIndices[0] = 0;
-    //     if (npoint == 1) continue;
-    //     std::vector<float> distances(n_points, std::numeric_limits<float>::max());
-    //     for (int i = 1; i < npoint; ++i) {
-    //         float maxDist = 0;
-    //         int farthest = 0;
-    //         for (int j = 0; j < n_points; ++j) {
-    //             float dist = std::pow(dataset[resultIndices[i-1] * 3] - dataset[j * 3], 2) +
-    //                             std::pow(dataset[resultIndices[i-1] * 3 + 1] - dataset[j * 3 + 1], 2) +
-    //                             std::pow(dataset[resultIndices[i-1] * 3 + 2] - dataset[j * 3 + 2], 2);
-    //             distances[j] = std::min(dist, distances[j]);
-    //             if (distances[j] > maxDist) {
-    //                 maxDist = distances[j];
-    //                 farthest = j;
-    //             }
-    //         }
-    //         resultIndices[i] = farthest;
-    //         distances[farthest] = 0; // Prevent the point from being selected again
-    //     }
-    // }
-    // return true;
+    const float* xyz = inputs[0].data<const float>();
+    const int npoint = *inputs[1].data<const int>();
 
-    // ==================================================
-    const auto& in = inputs[0];
-    auto& out = outputs[0];
-    if (out.data() == in.data())  // Nothing to do
-        return true;
-    out.set_shape(in.get_shape());
-    memcpy(out.data(), in.data(), in.get_byte_size());
+    int b = inputs[0].get_shape()[0]; // batch size
+    int n = inputs[0].get_shape()[1]; // number of points in xyz
+
+    auto& out_tensor = outputs[0];
+    int *out_data = out_tensor.data<int>();
+
+    if (npoint <= 0) {
+        return false;
+    }
+
+    for (int batch_index = 0; batch_index < b; ++batch_index) {
+        // 每个batch中的起始位置
+        const float *current_dataset = xyz + batch_index * n * 3;
+        int *current_idxs = out_data + batch_index * npoint;
+
+        // 初始化temp数组为最大值，表示初始时每个点到已选点集的距离未知或无限大
+        std::vector<float> temp(n, std::numeric_limits<float>::max());
+
+        // 初始化第一个点
+        current_idxs[0] = 0;
+        for (int j = 1; j < npoint; ++j) {
+            int besti = 0;
+            float best = -std::numeric_limits<float>::max();
+            float x1 = current_dataset[current_idxs[j - 1] * 3 + 0];
+            float y1 = current_dataset[current_idxs[j - 1] * 3 + 1];
+            float z1 = current_dataset[current_idxs[j - 1] * 3 + 2];
+
+            // 计算每个点的距离，并找到最远的点
+            for (int k = 0; k < n; ++k) {
+                float x2 = current_dataset[k * 3 + 0];
+                float y2 = current_dataset[k * 3 + 1];
+                float z2 = current_dataset[k * 3 + 2];
+                float mag = x2 * x2 + y2 * y2 + z2 * z2;
+                if (mag <= 1e-3) continue;
+
+                float d = (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1) + (z2 - z1) * (z2 - z1);
+                float d2 = std::min(d, temp[k]);
+                temp[k] = d2;
+                if (d2 > best) {
+                    best = d2;
+                    besti = k;
+                }
+            }
+
+            // 更新下一个选择的点
+            current_idxs[j] = besti;
+        }
+    }
+
+    // out.set_shape(in.get_shape());
+    // memcpy(out.data(), in.data(), in.get_byte_size());
     return true;
 }
 
 bool FurthestPointSampling::has_evaluate() const {
-    return false;
+    return true;
 }
 //! [op:evaluate]
