@@ -312,7 +312,7 @@ class BallQuery(Function):
     # def symbolic(g: torch.Graph, radius: float, nsample: int, xyz: torch.Tensor, new_xyz: torch.Tensor) -> torch.Tensor:
     #    return g.op("BallQuery", new_xyz, xyz, radius_f=radius, nsample_i=nsample)
     def symbolic(g: torch.Graph, radius: torch.Tensor, nsample: torch.Tensor, xyz: torch.Tensor, new_xyz: torch.Tensor) -> torch.Tensor:
-        return g.op("BallQuery", new_xyz, xyz, radius, nsample)
+        return g.op("BallQuery", radius, nsample, xyz, new_xyz)
 
     @staticmethod
     def forward(ctx, radius, nsample, xyz, new_xyz):

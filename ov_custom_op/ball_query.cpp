@@ -38,9 +38,9 @@ void BallQuery::validate_and_infer_types() {
     const auto& xyz = input(2);
     const auto& new_xyz = input(3);
     auto new_xyz_shape = new_xyz.get_partial_shape();
-    ov::PartialShape output_shape = {new_xyz_shape[0], new_xyz_shape[1], 64};
+    ov::PartialShape output_shape = {new_xyz_shape[0], new_xyz_shape[1], 8};
 
-    set_output_type(0, new_xyz.get_element_type(), output_shape);
+    set_output_type(0, ov::element::i32, output_shape);
 }
 //! [op:validate]
 
@@ -70,8 +70,7 @@ bool BallQuery::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inpu
     int m = inputs[3].get_shape()[1];
 
     auto& out_tensor = outputs[0];
-    int *current_idx;
-    current_idx = out_tensor.data<int>();
+    int *current_idx = out_tensor.data<int>();
 
     float radius2 = radius * radius;
 
