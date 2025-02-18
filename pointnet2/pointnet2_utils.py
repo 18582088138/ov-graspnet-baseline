@@ -140,7 +140,7 @@ gather_operation = GatherOperation.apply
 class ThreeNN(Function):
     @staticmethod
     def symbolic(g: torch.Graph, unknown: torch.Tensor, known: torch.Tensor) -> torch.Tensor:
-        return  g.op("ThreeNN", unknown, known)
+        return  g.op("ThreeNN", unknown, known, outputs=2)
 
     @staticmethod
     def forward(ctx, unknown, known):
@@ -162,12 +162,8 @@ class ThreeNN(Function):
             (B, n, 3) index of 3 nearest neighbors
         """
         dist2, idx = _ext.three_nn(unknown, known)
-        dist = torch.sqrt(dist2)
-        ist = dist.contiguous()
-        idx = idx.contiguous()
-        combined = torch.stack((dist, idx), dim=-1)
-        return combined
-        # return dist, idx
+        # dist2 = torch.sqrt(dist2)
+        return dist2, idx
 
     @staticmethod
     def backward(ctx, a=None, b=None):

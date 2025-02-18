@@ -37,7 +37,6 @@ rot = torch.randn([1, 512, 9], dtype=torch.float32)
 class SelfModel(nn.Module):
     def __init__(self):
         super().__init__()
-        # self.grouping_operation = GroupingOperation()
 
     def forward(self, new_xyz, xyz, rot, radius, hmin, hmax, nsample):
         # new_xyz_add = new_xyz * 2 + torch.randn_like(new_xyz)

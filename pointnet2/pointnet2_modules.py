@@ -396,10 +396,12 @@ class PointnetFPModule(nn.Module):
         """
 
         if known is not None:
-            combined = pointnet2_utils.three_nn(unknown, known)
-            dist = combined[..., 0]
-            idx = combined[..., 1].int()
-            idx = idx.contiguous()
+            dist, idx = pointnet2_utils.three_nn(unknown, known)
+            dist = torch.sqrt(dist)
+            # combined = pointnet2_utils.three_nn(unknown, known)
+            # dist = combined[..., 0]
+            # idx = combined[..., 1].int()
+            # idx = idx.contiguous()
 
             dist_recip = 1.0 / (dist + 1e-8)
             norm = torch.sum(dist_recip, dim=2, keepdim=True)

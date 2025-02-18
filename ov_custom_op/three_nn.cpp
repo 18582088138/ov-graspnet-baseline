@@ -67,7 +67,7 @@ bool ThreeNN::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs
     auto& out_dist_tensor = outputs[0];
     float *out_dist_data = out_dist_tensor.data<float>();
 
-    auto& out_idx_tensor = outputs[0];
+    auto& out_idx_tensor = outputs[1];
     int *out_idx_data = out_idx_tensor.data<int>();
 
     for (int batch_index = 0; batch_index < b; ++batch_index) {
