@@ -19,58 +19,58 @@ from openvino import serialize
 from models.modules import ApproachNet, CloudCrop, OperationNet, ToleranceNet
 from pointnet2.pointnet2_utils import  three_nn, three_interpolate
 
-model_name = 'ThreeNN'
+model_name = 'ThreeInterpolate'
 device = "CPU"
 ov_extension_lib_path = '../ov_custom_op/build/libopenvino_operation_extension.so'
 
 """
-    Find the three nearest neighbors of unknown in known
     Parameters
     ----------
-    unknown : torch.Tensor
-        (B, n, 3) tensor of known features
-    known : torch.Tensor
-        (B, m, 3) tensor of unknown features
+    features : torch.Tensor
+        (B, c, m) Features descriptors to be interpolated from
+    idx : torch.Tensor
+        (B, n, 3) three nearest neighbors of the target features in features
+    weight : torch.Tensor
+        (B, n, 3) weights
 
     Returns
     -------
-    dist : torch.Tensor
-        (B, n, 3) l2 distance to the three nearest neighbors
-    idx : torch.Tensor
-        (B, n, 3) index of 3 nearest neighbors
+    torch.Tensor
+        (B, c, n) tensor of the interpolated features
 """
 
 print(f"========= {model_name} model initial==========")
 core = Core()
 core.add_extension(ov_extension_lib_path)
 
-unknown = torch.randn([1, 64, 3], dtype=torch.float32)  # 示例数据
-known = torch.randn([1, 128, 3], dtype=torch.float32)  # 示例数据
+features = torch.randn([1, 16, 128], dtype=torch.float32)
+idx = torch.ones([1, 64, 3], dtype=torch.int32)
+weight = torch.randn([1, 64, 3], dtype=torch.float32)
 
 class SelfModel(nn.Module):
     def __init__(self):
         super().__init__()
 
-    def forward(self, unknown, known):
-        dist, idx = three_nn(unknown, known)
-        idx_batch_size, idx_npoint, idx_nsample = dist.shape[:3]
-        idx_output = dist.float()
+    def forward(self, features, idx, weight):
+        interpolated_feats = three_interpolate(features, idx, weight)
+        idx_batch_size, idx_npoint, idx_nsample = interpolated_feats.shape[:3]
+        idx_output = interpolated_feats.float()
         matrix_multiplication_result = torch.bmm(idx_output.view(idx_batch_size * idx_npoint, idx_nsample, -1), 
                                                   idx_output.view(idx_batch_size * idx_npoint, -1, idx_nsample))
         # linear_output = self.linear_layer(matrix_multiplication_result)
         # output = F.softmax(matrix_multiplication_result, dim=-1)
         
-        return matrix_multiplication_result, idx
+        return matrix_multiplication_result
 
 # 实例化模型
 torch_model = SelfModel()
-torch_cpu_output = torch_model(unknown, known)
-torch_cpu_result = torch_cpu_output[0].detach().cpu().numpy()
+torch_cpu_output = torch_model(features, idx, weight)
+torch_cpu_result = torch_cpu_output.detach().cpu().numpy()
 print("====Torch CPU result====", torch_cpu_result.shape, torch_cpu_result.dtype, type(torch_cpu_result))
 
 onnx_model_path = f'test_model/torch_2_onnx_sub_{model_name}.onnx'
-onnx_input = (unknown, known)
-onnx_input_name = ['unknown', 'known']
+onnx_input = (features, idx, weight)
+onnx_input_name = ['features', 'idx', 'weight']
 
 torch.onnx.export(
         torch_model, 
@@ -83,21 +83,13 @@ torch.onnx.export(
         )
 print(f"========= {model_name} onnx export success==========")
 
-# unknown_np = unknown.numpy().astype(np.float32)
-# known_np = known.numpy().astype(np.float32)
-# onnx_input = {'unknown':unknown_np, 
-#                 'known':known_np}
-# onnx_session = ort.InferenceSession(onnx_model_path)
-# onnx_output = onnx_session.run(None, onnx_input)
-# onnx_results = onnx_output[0]
-# print("==== ONNX result====", onnx_results.shape, onnx_results.dtype, type(onnx_results))
-# print("=======ONNX inference Success========")
-
 ov_model_path = f'test_model/torch_2_onnx_sub_{model_name}.xml'
-ov_input = {'unknown':unknown,
-            'known':known}
-ov_input_name = {'unknown':([1, 64, 3]),
-            'known':([1, 128, 3])}
+ov_input = {'features':features, 
+            'idx':idx, 
+            'weight':weight}
+ov_input_name = {'features':([1, 16, 128]), 
+                 'idx':([1, 64, 3]),
+                 'weight':([1, 64, 3])}
 
 ov_model = ov.convert_model(
             # torch_model,       #含custom op的torch model 无法导出graph
@@ -125,8 +117,8 @@ print("=======OpenVINO inference Success========")
 print("========= pytorch & openvino inference result compare ==========")
 gpu_device = torch.device("cuda:0")
 torch_gpu_model = torch_model.to(gpu_device)
-torch_gpu_output = torch_gpu_model(unknown.to(gpu_device), known.to(gpu_device))
-torch_gpu_result = torch_gpu_output[0].detach().cpu().numpy()
+torch_gpu_output = torch_gpu_model(features.to(gpu_device), idx.to(gpu_device), weight.to(gpu_device))
+torch_gpu_result = torch_gpu_output.detach().cpu().numpy()
 print("====Torch GPU result====", torch_gpu_result.shape, torch_gpu_result.dtype, type(torch_gpu_result))
 
 gpu_mse = np.mean((torch_gpu_result - ov_results) ** 2)
@@ -139,4 +131,3 @@ cpu_mse = np.mean((torch_cpu_result - ov_results) ** 2)
 cpu_max_diff = np.max(np.abs(torch_cpu_result - ov_results))
 print(f"[CPU] Mean Squared Error: {cpu_mse}")
 print(f"[CPU] Max Difference: {cpu_max_diff}")
-

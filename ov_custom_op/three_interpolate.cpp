@@ -37,7 +37,7 @@ void ThreeInterpolate::validate_and_infer_types() {
     auto features_shape = features.get_partial_shape();
     auto idx_shape = idx.get_partial_shape();
     ov::PartialShape output_shape = {features_shape[0], features_shape[1], idx_shape[1]};
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    set_output_type(0, ov::element::f32, output_shape);
 }
 //! [op:validate]
 
