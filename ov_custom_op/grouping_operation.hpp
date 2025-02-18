@@ -20,6 +20,10 @@ public:
 
     bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override;
     bool has_evaluate() const override;
+// private:
+//     bool evaluateCPU(ov::TensorVector& outputs, const ov::TensorVector& inputs) const;
+//     bool evaluateGPU(ov::TensorVector& outputs, const ov::TensorVector& inputs) const;
+//     bool use_gpu = false;
 };
 //! [op:header]
 

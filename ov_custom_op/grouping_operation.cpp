@@ -50,7 +50,6 @@ bool GroupingOperation::visit_attributes(ov::AttributeVisitor& visitor) {
 
 //! [op:evaluate]
 bool GroupingOperation::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
-    
     const float* features = inputs[0].data<const float>();
     const int* idx = inputs[1].data<const int>();
 
@@ -66,7 +65,6 @@ bool GroupingOperation::evaluate(ov::TensorVector& outputs, const ov::TensorVect
         const float *current_features = features + batch_index * c * n;
         const int *current_idx = idx + batch_index * npoint * nsample;
         float *current_out = out_tensor.data<float>() + batch_index * c * npoint * nsample;
-
         for (int i = 0; i < c * npoint * nsample; ++i) {
             current_out[i] = 0.0f;
         }
