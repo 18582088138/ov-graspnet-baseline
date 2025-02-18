@@ -92,7 +92,6 @@ furthest_point_sample = FurthestPointSampling.apply
 class GatherOperation(Function):
     @staticmethod
     def symbolic(g: torch.Graph, features: torch.Tensor, idx: torch.Tensor) -> torch.Tensor:
-        # return g.op("custom_domain::GatherOperation", features, idx)
         return g.op("GatherOperation", features, idx)
 
     @staticmethod
