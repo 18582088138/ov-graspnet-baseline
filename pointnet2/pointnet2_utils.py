@@ -389,9 +389,9 @@ class QueryAndGroup(nn.Module):
             (B, 3 + C, npoint, nsample) tensor
         """
         idx = ball_query(torch.tensor(self.radius), torch.tensor(self.nsample), xyz, new_xyz)
-
+        unique_cnt = torch.zeros((idx.shape[0], idx.shape[1]))
         if self.sample_uniformly:
-            unique_cnt = torch.zeros((idx.shape[0], idx.shape[1]))
+            # unique_cnt = torch.zeros((idx.shape[0], idx.shape[1]))
             for i_batch in range(idx.shape[0]):
                 for i_region in range(idx.shape[1]):
                     unique_ind = torch.unique(idx[i_batch, i_region, :])
@@ -400,7 +400,6 @@ class QueryAndGroup(nn.Module):
                     sample_ind = torch.randint(0, num_unique, (self.nsample - num_unique,), dtype=torch.long)
                     all_ind = torch.cat((unique_ind, unique_ind[sample_ind]))
                     idx[i_batch, i_region, :] = all_ind
-
 
         xyz_trans = xyz.transpose(1, 2).contiguous()
         grouped_xyz = grouping_operation(xyz_trans, idx)  # (B, 3, npoint, nsample)
@@ -425,8 +424,9 @@ class QueryAndGroup(nn.Module):
         ret = [new_features]
         if self.ret_grouped_xyz:
             ret.append(grouped_xyz)
-        if self.ret_unique_cnt:
-            ret.append(unique_cnt)
+        # if self.ret_unique_cnt:
+        #     ret.append(unique_cnt)
+        ret.append(unique_cnt)
         if len(ret) == 1:
             return ret[0]
         else:

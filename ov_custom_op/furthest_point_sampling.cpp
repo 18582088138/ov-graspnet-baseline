@@ -27,7 +27,7 @@ void FurthestPointSampling::validate_and_infer_types() {
         (B, npoint) tensor containing the set
     */
     const auto& xyz = input(0);
-    int npoint = 2048;
+    int npoint = -1;   //dynamic shape
     auto xyz_shape = xyz.get_partial_shape();
     ov::PartialShape output_shape = {xyz_shape[0], npoint};
     set_output_type(0, ov::element::i32, output_shape);
@@ -54,6 +54,9 @@ bool FurthestPointSampling::evaluate(ov::TensorVector& outputs, const ov::Tensor
 
     int b = inputs[0].get_shape()[0]; // batch size
     int n = inputs[0].get_shape()[1]; // number of points in xyz
+
+    ov::PartialShape output_shape = {b, npoint};
+    outputs[0].set_shape(output_shape.to_shape());
 
     auto& out_tensor = outputs[0];
     int *out_data = out_tensor.data<int>();

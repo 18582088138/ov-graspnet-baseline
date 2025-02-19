@@ -66,6 +66,9 @@ bool ThreeInterpolate::evaluate(ov::TensorVector& outputs, const ov::TensorVecto
     int m = inputs[0].get_shape()[2];
     int n = inputs[1].get_shape()[1];
 
+    ov::PartialShape output_shape = {b, c, n};
+    outputs[0].set_shape(output_shape.to_shape());
+
     auto& out_tensor = outputs[0];
     float *out_data = out_tensor.data<float>();
 

@@ -105,24 +105,25 @@ class Pointnet2Backbone(nn.Module):
         input_features = features
         
         # --------- 4 SET ABSTRACTION LAYERS ---------
-        xyz, features, fps_inds = self.sa1(xyz, features)
+        xyz, features, fps_inds, unique_cnt = self.sa1(xyz, features)
         sa1_inds = fps_inds
         sa1_xyz = xyz
         sa1_features = features
+        # return sa1_features, sa1_xyz, input_xyz
 
-        xyz, features, fps_inds = self.sa2(xyz, features)
+        xyz, features, fps_inds, unique_cnt = self.sa2(xyz, features)
         sa2_inds = fps_inds
         sa2_xyz = xyz
         sa2_features = features
 
-        xyz, features, fps_inds = self.sa3(xyz, features)
+        xyz, features, fps_inds, unique_cnt = self.sa3(xyz, features)
         sa3_xyz = xyz
         sa3_features = features
 
-        xyz, features, fps_inds = self.sa4(xyz, features)
+        xyz, features, fps_inds, unique_cnt = self.sa4(xyz, features)
         sa4_xyz = xyz
         sa4_features = features
-
+        # return sa4_features, sa2_xyz, input_xyz
         # --------- 2 FEATURE UPSAMPLING LAYERS --------
         features = self.fp1(sa3_xyz, sa4_xyz, sa3_features, sa4_features)
         features = self.fp2(sa2_xyz, sa3_xyz, sa2_features, features)

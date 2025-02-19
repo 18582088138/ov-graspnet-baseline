@@ -29,9 +29,10 @@ void GroupingOperation::validate_and_infer_types() {
 
     auto features_shape = features_input.get_partial_shape();
     auto idx_shape = idx_input.get_partial_shape();
-    ov::PartialShape output_shape = {features_shape[0], features_shape[1], idx_shape[1], idx_shape[2]};
-
-    set_output_type(0, features_input.get_element_type(), output_shape);
+    // ov::PartialShape output_shape = {features_shape[0], features_shape[1], idx_shape[1], idx_shape[2]};
+    std::cout<<"========= GroupingOperation::validate_and_infer_types::output_shape ======="<<features_shape[0]<<" "<<features_shape[1]<<" "<<idx_shape[1]<<" "<<idx_shape[2]<<std::endl;
+    ov::PartialShape output_shape = {1, -1, idx_shape[1], idx_shape[2]};
+    set_output_type(0, ov::element::f32, output_shape);
 }
 //! [op:validate]
 
@@ -58,7 +59,9 @@ bool GroupingOperation::evaluate(ov::TensorVector& outputs, const ov::TensorVect
     int n = inputs[0].get_shape()[2]; // number of points in features
     int npoint = inputs[1].get_shape()[1]; // number of points in idx
     int nsample = inputs[1].get_shape()[2]; // number of samples in idx
-
+    std::cout<<"========= GroupingOperation::evaluate::output_shape ======="<<b<<" "<<c<<" "<<npoint<<" "<<nsample<<std::endl;
+    ov::PartialShape output_shape = {b, c, npoint, nsample};
+    outputs[0].set_shape(output_shape.to_shape());
     auto& out_tensor = outputs[0];
     
     for (int batch_index = 0; batch_index < b; ++batch_index) {

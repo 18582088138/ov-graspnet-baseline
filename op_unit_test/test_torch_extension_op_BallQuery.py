@@ -45,9 +45,9 @@ core = Core()
 core.add_extension(ov_extension_lib_path)
 
 radius = torch.tensor(1.0, dtype=torch.float32)
-nsample = torch.tensor(8, dtype=torch.int32)
-xyz = torch.randn([1, 20000, 3], dtype=torch.float32)  # 示例数据
-new_xyz = torch.randn([1, 64, 3], dtype=torch.float32)  # 示例数据
+nsample = torch.tensor(16, dtype=torch.int32)
+xyz = torch.randn([1, 512, 3], dtype=torch.float32)  # 示例数据
+new_xyz = torch.randn([1, 256, 3], dtype=torch.float32)  # 示例数据
 
 
 class SelfModel(nn.Module):
@@ -97,8 +97,8 @@ ov_input = {'radius':radius,
             }
 ov_input_name = {'radius':([1]), 
                  'nsample':([1]), 
-                 'xyz':([1, 20000, 3]), 
-                 'new_xyz':([1, 64, 3]),
+                 'xyz':([1, 512, 3]), 
+                 'new_xyz':([1, 256, 3]),
                 }
 print("==== ov_input nsample ====", type(ov_input["nsample"]),ov_input["nsample"].shape, ov_input["nsample"].dtype)
 ov_model = ov.convert_model(

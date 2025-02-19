@@ -50,10 +50,10 @@ void query_ball_point_kernel_cpu_wrapper(int b, int n, int m, float radius,
         }
 
         // 如果找到的点少于nsample，则填充剩余索引为最后一个有效索引或-1
-        while (cnt < nsample) {
-          current_idx[j * nsample + cnt] = (cnt == 0) ? -1 : current_idx[j * nsample + cnt - 1];
-          ++cnt;
-        }
+        // while (cnt < nsample) {
+        //   current_idx[j * nsample + cnt] = (cnt == 0) ? -1 : current_idx[j * nsample + cnt - 1];
+        //   ++cnt;
+        // }
       }
     }
   }                                  

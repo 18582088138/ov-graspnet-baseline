@@ -38,7 +38,7 @@ void BallQuery::validate_and_infer_types() {
     const auto& xyz = input(2);
     const auto& new_xyz = input(3);
     auto new_xyz_shape = new_xyz.get_partial_shape();
-    ov::PartialShape output_shape = {new_xyz_shape[0], new_xyz_shape[1], 8};
+    ov::PartialShape output_shape = {new_xyz_shape[0], new_xyz_shape[1], -1}; // 64 as template value. The value of output shape needs to be updated during inference.
 
     set_output_type(0, ov::element::i32, output_shape);
 }
@@ -67,8 +67,11 @@ bool BallQuery::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inpu
 
     int b = inputs[2].get_shape()[0]; // batch size
     int n = inputs[2].get_shape()[1]; // number of points in xyz
-    int m = inputs[3].get_shape()[1];
+    int npoint = inputs[3].get_shape()[1]; // number of points in new_xy
+    // int m = inputs[3].get_shape()[1];
 
+    ov::PartialShape output_shape = {b, npoint, nsample};
+    outputs[0].set_shape(output_shape.to_shape());
     auto& out_tensor = outputs[0];
     int *current_idx = out_tensor.data<int>();
 
@@ -77,10 +80,10 @@ bool BallQuery::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inpu
     for (int batch_index = 0; batch_index < b; ++batch_index) {
       // 每个batch中的起始位置
       const float *current_xyz = xyz + batch_index * n * 3;
-      const float *current_new_xyz = new_xyz + batch_index * m * 3;
-      int *current_batch_idx = current_idx + batch_index * m * nsample;
+      const float *current_new_xyz = new_xyz + batch_index * npoint * 3;
+      int *current_batch_idx = current_idx + batch_index * npoint * nsample;
 
-      for (int j = 0; j < m; ++j) {
+      for (int j = 0; j < npoint; ++j) {
         float new_x = current_new_xyz[j * 3 + 0];
         float new_y = current_new_xyz[j * 3 + 1];
         float new_z = current_new_xyz[j * 3 + 2];
@@ -108,10 +111,10 @@ bool BallQuery::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inpu
         }
 
         // 如果找到的点少于nsample，则填充剩余索引为最后一个有效索引或-1
-        while (cnt < nsample) {
-          current_batch_idx[j * nsample + cnt] = (cnt == 0) ? -1 : current_batch_idx[j * nsample + cnt - 1];
-          ++cnt;
-        }
+        // while (cnt < nsample) {
+        //   current_batch_idx[j * nsample + cnt] = (cnt == 0) ? -1 : current_batch_idx[j * nsample + cnt - 1];
+        //   ++cnt;
+        // }
       }
     }
     // out.set_shape(in.get_shape());

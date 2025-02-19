@@ -195,10 +195,12 @@ class PointnetSAModuleVotes(nn.Module):
         self.ret_unique_cnt = ret_unique_cnt
 
         if npoint is not None:
+            print("==== pointnet2_utils.QueryAndGroup ===", npoint ,( npoint is not None))
             self.grouper = pointnet2_utils.QueryAndGroup(radius, nsample,
                 use_xyz=use_xyz, ret_grouped_xyz=True, normalize_xyz=normalize_xyz,
                 sample_uniformly=sample_uniformly, ret_unique_cnt=ret_unique_cnt)
         else:
+            print("==== pointnet2_utils.GroupAll ===", npoint, (npoint is not None))
             self.grouper = pointnet2_utils.GroupAll(use_xyz, ret_grouped_xyz=True)
 
         mlp_spec = mlp
@@ -229,7 +231,6 @@ class PointnetSAModuleVotes(nn.Module):
         inds: torch.Tensor
             (B, npoint) tensor of the inds
         """
-
         xyz_flipped = xyz.transpose(1, 2).contiguous()
         if inds is None:
             inds = pointnet2_utils.furthest_point_sample(xyz, torch.tensor(self.npoint))
@@ -239,12 +240,16 @@ class PointnetSAModuleVotes(nn.Module):
             xyz_flipped, inds
         ).transpose(1, 2).contiguous() if self.npoint is not None else None
 
-        if not self.ret_unique_cnt:
-            grouped_features, grouped_xyz = self.grouper(
-                xyz, new_xyz, features
-            )  # (B, C, npoint, nsample)
-        else:
-            grouped_features, grouped_xyz, unique_cnt = self.grouper(
+        # if not self.ret_unique_cnt:
+        #     grouped_features, grouped_xyz = self.grouper(
+        #         xyz, new_xyz, features
+        #     )  # (B, C, npoint, nsample)
+        #     unique_cnt = torch.tensor([10,100]) #(B, npoint)
+        # else:
+        #     grouped_features, grouped_xyz, unique_cnt = self.grouper(
+        #         xyz, new_xyz, features
+        #     )  # (B, C, npoint, nsample), (B,3,npoint,nsample), (B,npoint)
+        grouped_features, grouped_xyz, unique_cnt = self.grouper(
                 xyz, new_xyz, features
             )  # (B, C, npoint, nsample), (B,3,npoint,nsample), (B,npoint)
 
@@ -254,7 +259,6 @@ class PointnetSAModuleVotes(nn.Module):
 
         kernel_size=[1, int(new_features.size(3))]
         # kernel_size=[1, new_features.size(3)]  # RuntimeError: Failed to export an ONNX attribute 'onnx::Gather', since it's not constant
-
         if self.pooling == 'max':
             new_features = F.max_pool2d(
                 new_features, kernel_size=kernel_size,
@@ -268,13 +272,10 @@ class PointnetSAModuleVotes(nn.Module):
             # Ref: https://en.wikipedia.org/wiki/Radial_basis_function_kernel
             rbf = torch.exp(-1 * grouped_xyz.pow(2).sum(1,keepdim=False) / (self.sigma**2) / 2) # (B, npoint, nsample)
             new_features = torch.sum(new_features * rbf.unsqueeze(1), -1, keepdim=True) / float(self.nsample) # (B, mlp[-1], npoint, 1)
-            
-        new_features = new_features.squeeze(-1)  # (B, mlp[-1], npoint)
-
-        if not self.ret_unique_cnt:
-            return new_xyz, new_features, inds
-        else:
-            return new_xyz, new_features, inds, unique_cnt
+        # new_features = new_features.squeeze(-1)  # (B, mlp[-1], npoint)
+        target_shape = list(new_features.shape[:-1]) 
+        new_features = new_features.view(*target_shape)
+        return new_xyz, new_features, inds, unique_cnt
 
 class PointnetSAModuleMSGVotes(nn.Module):
     ''' Modified based on _PointnetSAModuleBase and PointnetSAModuleMSG

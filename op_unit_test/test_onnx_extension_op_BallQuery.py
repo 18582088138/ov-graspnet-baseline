@@ -29,8 +29,8 @@ def create_onnx_model_extension():
     input_tensors = [
         make_tensor_value_info("radius", onnx.TensorProto.FLOAT, ()),
         make_tensor_value_info("nsample", onnx.TensorProto.INT32, ()),
-        make_tensor_value_info("xyz", onnx.TensorProto.FLOAT, (1, 20000, 3)),
-        make_tensor_value_info("new_xyz", onnx.TensorProto.FLOAT, (1, 64, 3)),
+        make_tensor_value_info("xyz", onnx.TensorProto.FLOAT, (1, 512, 3)),
+        make_tensor_value_info("new_xyz", onnx.TensorProto.FLOAT, (1, 256, 3)),
     ]
     output_tensors = [make_tensor_value_info("out", onnx.TensorProto.FLOAT, (1, 64, 8))]
     graph = make_graph([fps, const_node, mul], "graph", input_tensors, output_tensors)

@@ -49,7 +49,7 @@ void CylinderQuery::validate_and_infer_types() {
     //     std::cout << "Input is not a Constant node." << std::endl;
     // }
     auto new_xyz_shape = new_xyz.get_partial_shape();
-    ov::PartialShape output_shape = {new_xyz_shape[0], new_xyz_shape[1], 32}; //64 is only a temporary setting. The value of output shape needs to be updated during inference.
+    ov::PartialShape output_shape = {new_xyz_shape[0], new_xyz_shape[1], -1}; //64 is only a temporary setting. The value of output shape needs to be updated during inference.
 
     set_output_type(0, ov::element::i32, output_shape);
 }
@@ -83,6 +83,9 @@ bool CylinderQuery::evaluate(ov::TensorVector& outputs, const ov::TensorVector& 
     int b = inputs[1].get_shape()[0]; // batch size
     int n = inputs[1].get_shape()[1]; // number of points in xyz
     int m = inputs[0].get_shape()[1];
+
+    ov::PartialShape output_shape = {b, n, nsample};
+    outputs[0].set_shape(output_shape.to_shape());
 
     auto& out_tensor = outputs[0];
     // std::cout<<"==== out_tensor shape: ===="<<out_tensor.get_shape()<<std::endl;

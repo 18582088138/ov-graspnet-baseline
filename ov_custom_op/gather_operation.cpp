@@ -63,6 +63,8 @@ bool GatherOperation::evaluate(ov::TensorVector& outputs, const ov::TensorVector
     int n = inputs[0].get_shape()[2]; // number of points
     int npoints = inputs[1].get_shape()[1]; // number of points to gather
 
+    ov::PartialShape output_shape = {b, c, npoints};
+    outputs[0].set_shape(output_shape.to_shape());
     auto* out_tensor = outputs[0].data<float>();
 
     for (int i = 0; i < b; ++i) {
