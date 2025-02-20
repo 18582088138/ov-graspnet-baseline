@@ -195,12 +195,11 @@ class PointnetSAModuleVotes(nn.Module):
         self.ret_unique_cnt = ret_unique_cnt
 
         if npoint is not None:
-            print("==== pointnet2_utils.QueryAndGroup ===", npoint ,( npoint is not None))
+            # print("==== pointnet2_utils.QueryAndGroup ===", npoint ,( npoint is not None))
             self.grouper = pointnet2_utils.QueryAndGroup(radius, nsample,
                 use_xyz=use_xyz, ret_grouped_xyz=True, normalize_xyz=normalize_xyz,
                 sample_uniformly=sample_uniformly, ret_unique_cnt=ret_unique_cnt)
         else:
-            print("==== pointnet2_utils.GroupAll ===", npoint, (npoint is not None))
             self.grouper = pointnet2_utils.GroupAll(use_xyz, ret_grouped_xyz=True)
 
         mlp_spec = mlp

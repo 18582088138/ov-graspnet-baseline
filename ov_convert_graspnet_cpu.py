@@ -43,7 +43,7 @@ device = torch.device("cpu")
 ov_extension_lib_path = 'ov_custom_op/build/libopenvino_operation_extension.so'
 core = Core()
 core.add_extension(ov_extension_lib_path)
-compare_idx = 0
+compare_idx = 1
 
 def get_net(device):
     # Init the model
@@ -101,11 +101,12 @@ def get_and_process_data(data_dir,device):
 
     return end_points, cloud
 
+def export_view_estimator(data_dir, device):
+    graspnet = get_net(device)
+    view_estimator = graspnet.view_estimator
+    grasp_generator = graspnet.grasp_generator
 
-def export_single_graspnet(data_dir, device):
-    net = get_net(device)
-    view_estimator = net.view_estimator
-    grasp_generator = net.grasp_generator
+    torch_model = view_estimator
 
     end_points, cloud = get_and_process_data(data_dir, device)
     view_estimator_input = end_points['point_clouds']
@@ -113,7 +114,7 @@ def export_single_graspnet(data_dir, device):
     view_estimator_onnx_path = 'torch_sub_model_view_estimator.onnx'
 
     torch.onnx.export(
-            view_estimator, 
+            torch_model, 
             view_estimator_input,
             view_estimator_onnx_path,
             input_names=view_estimator_input_name,
@@ -121,11 +122,11 @@ def export_single_graspnet(data_dir, device):
             export_params=True,
             # verbose=True,
             )
-    print(f"========= view_estimator onnx export success==========")
+    print(f"========= sub-model view_estimator onnx export success==========")
 
     ov_view_estimator_path = f'torch_sub_model_view_estimator.xml'
     ov_view_estimator_input = {'point_clouds': view_estimator_input}
-    ov_view_estimator_input_name = {'point_clouds': ([1, 20000, 3])}
+    ov_view_estimator_input_name = {'point_clouds': ([1, -1, 3])}
 
     ov_model = ov.convert_model(
                 # torch_model,       #含custom op的torch model 无法导出graph
@@ -133,13 +134,51 @@ def export_single_graspnet(data_dir, device):
                 input=ov_view_estimator_input_name,
                 example_input=ov_view_estimator_input,
                 extension=ov_extension_lib_path,
-                verbose=True,
+                # verbose=True,
                 )
     ov_model = core.read_model(view_estimator_onnx_path)
     ov_compiled_model = core.compile_model(ov_model, 'CPU')
     serialize(ov_model, ov_view_estimator_path)
-    print(f"========= view_estimator openvino export success==========")
+    print(f"========= sub-model view_estimator openvino export success==========")
+    
+    print("========= pytorch & openvino inference result compare ==========")
+    print("=======OpenVINO inference========")
+    ov_model = core.read_model(ov_view_estimator_path)
+    ov_compiled_model = core.compile_model(ov_model, "CPU")
+    ov_infer_request = ov_compiled_model.create_infer_request()
+    ov_outputs = ov_infer_request.infer(ov_view_estimator_input)
+    ov_results_list = list(ov_outputs.values())
+    ov_result = ov_results_list[compare_idx]
 
+    print("=======Torch CPU inference========")
+    torch_cpu_output = torch_model(view_estimator_input)
+    torch_cpu_result = torch_cpu_output[compare_idx].detach().cpu().numpy()
+
+    print("=======Torch GPU inference========")
+    gpu_device = torch.device("cuda:0")
+    torch_gpu_model = torch_model.to(gpu_device)
+    torch_gpu_output = torch_gpu_model(view_estimator_input.to(gpu_device))
+    torch_gpu_result = torch_gpu_output[compare_idx].detach().cpu().numpy()
+
+    gpu_mse = np.mean((torch_gpu_result - ov_result) ** 2)
+    gpu_max_diff = np.max(np.abs(torch_gpu_result - ov_result))
+    print(f"[GPU] Mean Squared Error: {gpu_mse}")
+    print(f"[GPU] Max Difference: {gpu_max_diff}")
+
+    cpu_mse = np.mean((torch_cpu_result - ov_result) ** 2)
+    cpu_max_diff = np.max(np.abs(torch_cpu_result - ov_result))
+    print(f"[CPU] Mean Squared Error: {cpu_mse}")
+    print(f"[CPU] Max Difference: {cpu_max_diff}")
+
+def export_grasp_generator(data_dir, device):
+    graspnet = get_net(device)
+    view_estimator = graspnet.view_estimator
+    grasp_generator = graspnet.grasp_generator
+
+    torch_model = grasp_generator
+
+    end_points, cloud = get_and_process_data(data_dir, device)
+    view_estimator_input = end_points['point_clouds']
 
     with torch.no_grad():
         input_xyz, fp2_xyz, objectness_score, grasp_top_view_xyz, grasp_top_view_rot = view_estimator(view_estimator_input)
@@ -151,7 +190,7 @@ def export_single_graspnet(data_dir, device):
     print(f"========= grasp_top_view_rot: ==========", grasp_top_view_rot.shape, grasp_top_view_rot.dtype)
 
     torch.onnx.export(
-            grasp_generator, 
+            torch_model, 
             grasp_generator_input,
             onnx_grasp_generator_path,
             input_names=grasp_generator_input_name,
@@ -159,18 +198,15 @@ def export_single_graspnet(data_dir, device):
             export_params=True,
             # verbose=True,
             )
-    print(f"========= grasp_generator onnx export success==========")
+    print(f"========= sub-model grasp_generator onnx export success==========")
 
     ov_grasp_generator_path = f'torch_sub_model_grasp_generator.xml'
-    # fp2_xyz = torch.randn([1, 1024, 3], dtype=torch.float32)
-    # input_xyz = torch.randn([1, 1024, 3], dtype=torch.float32)
-    # grasp_top_view_rot = torch.randn([1, 1024, 3, 3], dtype=torch.float32)
     ov_grasp_generator_input = {'input_xyz': input_xyz, 
                                 'fp2_xyz': fp2_xyz, 
                                 'grasp_top_view_rot': grasp_top_view_rot}
-    ov_grasp_generator_input_name = {'input_xyz': ([1, 20000, 3]),
-                                    'fp2_xyz': ([1, 1024, 3]),
-                                    'grasp_top_view_rot': ([1, 1024, 3, 3])}
+    ov_grasp_generator_input_name = {'input_xyz': ([1, -1, 3]),
+                                    'fp2_xyz': ([1, -1, 3]),
+                                    'grasp_top_view_rot': ([1, -1, 3, 3])}
 
     ov_model = ov.convert_model(
                 # torch_model,       #含custom op的torch model 无法导出graph
@@ -178,29 +214,61 @@ def export_single_graspnet(data_dir, device):
                 input=ov_grasp_generator_input_name, 
                 example_input=ov_grasp_generator_input, 
                 extension=ov_extension_lib_path,
-                verbose=True,
+                # verbose=True,
                 )
     ov_model = core.read_model(onnx_grasp_generator_path)
     ov_compiled_model = core.compile_model(ov_model, 'CPU')
     serialize(ov_model, ov_grasp_generator_path)
-    print(f"========= grasp_generator openvino export success==========")
+    print(f"========= sub-model grasp_generator openvino export success==========")
 
+    print("========= pytorch & openvino inference result compare ==========")
+    print("=======OpenVINO inference========")
+    ov_model = core.read_model(ov_grasp_generator_path)
+    ov_compiled_model = core.compile_model(ov_model, "CPU")
+    ov_infer_request = ov_compiled_model.create_infer_request()
+    ov_outputs = ov_infer_request.infer(ov_grasp_generator_input)
+    ov_results_list = list(ov_outputs.values())
+    ov_result = ov_results_list[compare_idx]
+
+    print("=======Torch CPU inference========")
+    torch_cpu_output = torch_model(input_xyz, fp2_xyz, grasp_top_view_rot)
+    torch_cpu_result = torch_cpu_output[compare_idx].detach().cpu().numpy()
+
+    print("=======Torch GPU inference========")
+    gpu_device = torch.device("cuda:0")
+    torch_gpu_model = torch_model.to(gpu_device)
+    torch_gpu_output = torch_gpu_model(input_xyz.to(gpu_device), fp2_xyz.to(gpu_device), grasp_top_view_rot.to(gpu_device))
+    torch_gpu_result = torch_gpu_output[compare_idx].detach().cpu().numpy()
+
+    gpu_mse = np.mean((torch_gpu_result - ov_result) ** 2)
+    gpu_max_diff = np.max(np.abs(torch_gpu_result - ov_result))
+    print(f"[GPU] Mean Squared Error: {gpu_mse}")
+    print(f"[GPU] Max Difference: {gpu_max_diff}")
+
+    cpu_mse = np.mean((torch_cpu_result - ov_result) ** 2)
+    cpu_max_diff = np.max(np.abs(torch_cpu_result - ov_result))
+    print(f"[CPU] Mean Squared Error: {cpu_mse}")
+    print(f"[CPU] Max Difference: {cpu_max_diff}")
+
+    torch_mse = np.mean((torch_cpu_result - torch_gpu_result) ** 2)
+    torch_max_diff = np.max(np.abs(torch_cpu_result - torch_gpu_result))
+    print(f"[Torch] Mean Squared Error: {torch_mse}")
+    print(f"[Torch] Max Difference: {torch_max_diff}")
 
 def export_whole_graspnet(data_dir, device):
-    net = get_net(device)
-    view_estimator = net.view_estimator
-    grasp_generator = net.grasp_generator
+    graspnet = get_net(device)
+    view_estimator = graspnet.view_estimator
+    grasp_generator = graspnet.grasp_generator
+
+    torch_model = graspnet
 
     end_points, cloud = get_and_process_data(data_dir, device)
     view_estimator_input = end_points['point_clouds']
     view_estimator_input_name = ['point_clouds']
     view_estimator_onnx_path = 'torch_model_graspnet.onnx'
 
-    torch_cpu_output = net(view_estimator_input)
-    torch_cpu_result = torch_cpu_output[compare_idx].detach().cpu().numpy()
-    print("====Torch CPU result====", torch_cpu_result.shape, torch_cpu_result.dtype, type(torch_cpu_result))
     torch.onnx.export(
-            net, 
+            torch_model, 
             view_estimator_input,
             view_estimator_onnx_path,
             input_names=view_estimator_input_name,
@@ -220,46 +288,45 @@ def export_whole_graspnet(data_dir, device):
                 input=ov_view_estimator_input_name,
                 example_input=ov_view_estimator_input,
                 extension=ov_extension_lib_path,
-                verbose=True,
+                # verbose=True,
                 )
     ov_model = core.read_model(view_estimator_onnx_path)
     ov_compiled_model = core.compile_model(ov_model, 'CPU')
     serialize(ov_model, ov_view_estimator_path)
     print(f"========= whole graspnet openvino export success==========")
 
+    print("========= pytorch & openvino inference result compare ==========")
     print("=======OpenVINO inference========")
     ov_model = core.read_model(ov_view_estimator_path)
     ov_compiled_model = core.compile_model(ov_model, "CPU")
     ov_infer_request = ov_compiled_model.create_infer_request()
-    ov_output = ov_infer_request.infer(ov_view_estimator_input)
+    ov_outputs = ov_infer_request.infer(ov_view_estimator_input)
+    ov_results_list = list(ov_outputs.values())
+    ov_result = ov_results_list[compare_idx]
 
-    ov_results = ov_output[compare_idx]
-    print("==== OV CPU result====", ov_results.shape, ov_results.dtype, type(ov_results))
+    print("=======Torch CPU inference========")
+    torch_cpu_output = torch_model(view_estimator_input)
+    torch_cpu_result = torch_cpu_output[compare_idx].detach().cpu().numpy()
 
-    print("=======OpenVINO inference Success========")
-
-
-    print("========= pytorch & openvino inference result compare ==========")
+    print("=======Torch GPU inference========")
     gpu_device = torch.device("cuda:0")
-    torch_gpu_model = net.to(gpu_device)
+    torch_gpu_model = torch_model.to(gpu_device)
     torch_gpu_output = torch_gpu_model(view_estimator_input.to(gpu_device))
     torch_gpu_result = torch_gpu_output[compare_idx].detach().cpu().numpy()
-    print("====Torch GPU result====", torch_gpu_result.shape, torch_gpu_result.dtype, type(torch_gpu_result))
 
-    gpu_mse = np.mean((torch_gpu_result - ov_results) ** 2)
-    gpu_max_diff = np.max(np.abs(torch_gpu_result - ov_results))
-    gpu_summary = np.array_equal(torch_gpu_result, ov_results)
+    gpu_mse = np.mean((torch_gpu_result - ov_result) ** 2)
+    gpu_max_diff = np.max(np.abs(torch_gpu_result - ov_result))
     print(f"[GPU] Mean Squared Error: {gpu_mse}")
     print(f"[GPU] Max Difference: {gpu_max_diff}")
 
-    # cpu_mse = np.mean((torch_cpu_result - ov_results) ** 2)
-    # cpu_max_diff = np.max(np.abs(torch_cpu_result - ov_results))
-    # print(f"[CPU] Mean Squared Error: {cpu_mse}")
-    # print(f"[CPU] Max Difference: {cpu_max_diff}")
-
-
-
+    cpu_mse = np.mean((torch_cpu_result - ov_result) ** 2)
+    cpu_max_diff = np.max(np.abs(torch_cpu_result - ov_result))
+    print(f"[CPU] Mean Squared Error: {cpu_mse}")
+    print(f"[CPU] Max Difference: {cpu_max_diff}")
 
 if __name__ == '__main__':
     data_dir = 'doc/example_data'
+    # export_view_estimator(data_dir, device)
+    # export_grasp_generator(data_dir, device)
     export_whole_graspnet(data_dir, device)
+    print("========= export success ==========")

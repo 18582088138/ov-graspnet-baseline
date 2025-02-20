@@ -603,7 +603,6 @@ class CylinderQueryAndGroup(nn.Module):
             grouped_xyz_ = torch.matmul(grouped_xyz_, rot)
             grouped_xyz = grouped_xyz_.permute(0, 3, 1, 2).contiguous()
 
-
         if features is not None:
             grouped_features = grouping_operation(features, idx)
             if self.use_xyz:

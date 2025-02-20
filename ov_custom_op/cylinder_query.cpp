@@ -82,9 +82,10 @@ bool CylinderQuery::evaluate(ov::TensorVector& outputs, const ov::TensorVector& 
 
     int b = inputs[1].get_shape()[0]; // batch size
     int n = inputs[1].get_shape()[1]; // number of points in xyz
-    int m = inputs[0].get_shape()[1];
+    int npoint = inputs[0].get_shape()[1]; // number of points in new_xyz
+    // int m = inputs[0].get_shape()[1];
 
-    ov::PartialShape output_shape = {b, n, nsample};
+    ov::PartialShape output_shape = {b, npoint, nsample};
     outputs[0].set_shape(output_shape.to_shape());
 
     auto& out_tensor = outputs[0];
@@ -98,12 +99,12 @@ bool CylinderQuery::evaluate(ov::TensorVector& outputs, const ov::TensorVector& 
     for (int batch_index = 0; batch_index < b; ++batch_index) {
         // 计算当前批次中xyz, new_xyz, rot 和 idx 的起始位置
         const float* current_xyz = xyz + batch_index * n * 3;
-        const float* current_new_xyz = new_xyz + batch_index * m * 3;
-        const float* current_rot = rot + batch_index * m * 9;
-        int* current_idx = idx + batch_index * m * nsample;
+        const float* current_new_xyz = new_xyz + batch_index * npoint * 3;
+        const float* current_rot = rot + batch_index * npoint * 9;
+        int* current_idx = idx + batch_index * npoint * nsample;
 
         // 遍历每个新点
-        for (int j = 0; j < m; ++j) {
+        for (int j = 0; j < npoint; ++j) {
             // 获取当前点坐标和旋转矩阵
             float new_x = current_new_xyz[j * 3 + 0];
             float new_y = current_new_xyz[j * 3 + 1];

@@ -175,7 +175,6 @@ class OperationNet(nn.Module):
                 end_points: [dict]
         """
         B, _, num_seed, num_depth = vp_features.size()
-        print("===vp_features.size()====",vp_features.size())
         vp_features = vp_features.view(B, -1, num_seed*num_depth)
         vp_features = F.relu(self.bn1(self.conv1(vp_features)), inplace=True)
         vp_features = F.relu(self.bn2(self.conv2(vp_features)), inplace=True)

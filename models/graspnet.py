@@ -54,7 +54,6 @@ class GraspNetStage2(nn.Module):
             grasp_top_views_rot = grasp_top_view_rot
             seed_xyz = fp2_xyz
         vp_features = self.crop(seed_xyz, pointcloud, grasp_top_views_rot)
-        # return vp_features
         grasp_score_pred, grasp_angle_cls_pred, grasp_width_pred = self.operation(vp_features)
         grasp_tolerance_pred = self.tolerance(vp_features)
 
