@@ -107,6 +107,42 @@ def batch_viewpoint_params_to_matrix(batch_towards, batch_angle):
     batch_matrix = torch.matmul(R2, R1)
     return batch_matrix
 
+def manual_cross_np(x, y):
+    """ Manual cross product."""
+    return np.cross(x, y)
+
+def batch_viewpoint_params_to_matrix_np(batch_towards, batch_angle):
+    """ Transform approach vectors and in-plane rotation angles to rotation matrices.
+
+        Input:
+            batch_towards: [numpy.ndarray, (N,3)]
+                approach vectors in batch
+            batch_angle: [numpy.ndarray, (N,)]
+                in-plane rotation angles in batch
+                
+        Output:
+            batch_matrix: [numpy.ndarray, (N,3,3)]
+                rotation matrices in batch
+    """
+    axis_x = batch_towards
+    ones = np.ones((axis_x.shape[0],), dtype=axis_x.dtype)
+    zeros = np.zeros((axis_x.shape[0],), dtype=axis_x.dtype)
+    axis_y = np.stack([-axis_x[:, 1], axis_x[:, 0], zeros], axis=-1)
+    mask_y = (np.linalg.norm(axis_y, axis=-1) == 0)
+    axis_y[mask_y, 1] = 1
+    axis_x = axis_x / np.linalg.norm(axis_x, axis=-1, keepdims=True)
+    axis_y = axis_y / np.linalg.norm(axis_y, axis=-1, keepdims=True)
+    axis_z = manual_cross_np(axis_x, axis_y)
+    
+    sin = np.sin(batch_angle)
+    cos = np.cos(batch_angle)
+    R1 = np.stack([ones, zeros, zeros, zeros, cos, -sin, zeros, sin, cos], axis=-1).reshape(-1, 3, 3)
+    R2 = np.stack([axis_x, axis_y, axis_z], axis=-1)
+    batch_matrix = np.matmul(R2, R1)
+    
+    return batch_matrix
+
+
 def huber_loss(error, delta=1.0):
     """
     Args:

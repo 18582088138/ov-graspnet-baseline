@@ -18,7 +18,7 @@ sys.path.append(os.path.join(ROOT_DIR, 'utils'))
 from backbone import Pointnet2Backbone
 from modules import ApproachNet, CloudCrop, OperationNet, ToleranceNet
 from loss import get_loss
-from loss_utils import GRASP_MAX_WIDTH, GRASP_MAX_TOLERANCE
+from loss_utils import GRASP_MAX_WIDTH, GRASP_MAX_TOLERANCE, batch_viewpoint_params_to_matrix_np
 from label_generation import process_grasp_labels, match_grasp_view_and_label, batch_viewpoint_params_to_matrix
 
 
@@ -71,7 +71,8 @@ class GraspNet(nn.Module):
         if self.is_training:
             end_points = process_grasp_labels(end_points)
         grasp_score_pred, grasp_angle_cls_pred, grasp_width_pred, grasp_tolerance_pred = self.grasp_generator(input_xyz, fp2_xyz, grasp_top_view_rot)
-        return fp2_xyz, objectness_score, grasp_top_view_xyz, grasp_score_pred, grasp_angle_cls_pred, grasp_width_pred, grasp_tolerance_pred
+        return objectness_score, grasp_score_pred, fp2_xyz, grasp_top_view_xyz, grasp_angle_cls_pred, grasp_width_pred, grasp_tolerance_pred
+        # return fp2_xyz, objectness_score, grasp_top_view_xyz, grasp_score_pred, grasp_angle_cls_pred, grasp_width_pred, grasp_tolerance_pred
 
 def pred_decode(end_points):
     batch_size = len(end_points['point_clouds'])
@@ -87,8 +88,17 @@ def pred_decode(end_points):
         grasp_width = torch.clamp(grasp_width, min=0, max=GRASP_MAX_WIDTH)
         grasp_tolerance = end_points['grasp_tolerance_pred'][i]
 
+        # print("=== objectness_score ===",objectness_score.size())
+        # print("=== grasp_score ===",grasp_score.size())
+        # print("=== grasp_center ===",grasp_center.size())
+        # print("=== approaching ===",approaching.size())
+        # print("=== grasp_angle_class_score ===",grasp_angle_class_score.size())
+        # print("=== grasp_width ===",grasp_width.size())
+        # print("=== grasp_tolerance ===",grasp_tolerance.size())
+
         ## slice preds by angle
         # grasp angle
+        # breakpoint()
         grasp_angle_class = torch.argmax(grasp_angle_class_score, 0)
         grasp_angle = grasp_angle_class.float() / 12 * np.pi
         # grasp score & width & tolerance
@@ -130,4 +140,76 @@ def pred_decode(end_points):
         grasp_height = 0.02 * torch.ones_like(grasp_score)
         obj_ids = -1 * torch.ones_like(grasp_score)
         grasp_preds.append(torch.cat([grasp_score, grasp_width, grasp_height, grasp_depth, rotation_matrix, grasp_center, obj_ids], axis=-1))
+    return grasp_preds
+
+
+import numpy as np
+
+def pred_decode_np(end_points):
+    batch_size = len(end_points['point_clouds'])
+    grasp_preds = []
+    for i in range(batch_size):
+        ## load predictions
+        objectness_score = end_points['objectness_score'][i]
+        grasp_score = end_points['grasp_score_pred'][i]
+        grasp_center = end_points['fp2_xyz'][i]
+        approaching = -end_points['grasp_top_view_xyz'][i]
+        grasp_angle_class_score = end_points['grasp_angle_cls_pred'][i]
+        grasp_width = 1.2 * end_points['grasp_width_pred'][i]
+        grasp_width = np.clip(grasp_width, a_min=0, a_max=GRASP_MAX_WIDTH)  # 假设GRASP_MAX_WIDTH已定义
+        grasp_tolerance = end_points['grasp_tolerance_pred'][i]
+
+        # print("=== objectness_score ===",objectness_score.shape)
+        # print("=== grasp_score ===",grasp_score.shape)
+        # print("=== grasp_center ===",grasp_center.shape)
+        # print("=== approaching ===",approaching.shape)
+        # print("=== grasp_angle_class_score ===",grasp_angle_class_score.shape)
+        # print("=== grasp_width ===",grasp_width.shape)
+        # print("=== grasp_tolerance ===",grasp_tolerance.shape)
+
+        ## slice preds by angle
+        grasp_angle_class = np.argmax(grasp_angle_class_score, axis=0)
+        grasp_angle = grasp_angle_class.astype(np.float32) / 12 * np.pi
+        grasp_angle_class_ = np.expand_dims(grasp_angle_class, axis=0)
+        grasp_score = np.take_along_axis(grasp_score, grasp_angle_class_, axis=0).squeeze(0)
+        grasp_width = np.take_along_axis(grasp_width, grasp_angle_class_, axis=0).squeeze(0)
+        grasp_tolerance = np.take_along_axis(grasp_tolerance, grasp_angle_class_, axis=0).squeeze(0)
+
+        ## slice preds by score/depth (简化了这一部分的逻辑以适应NumPy)
+        grasp_depth_class = np.argmax(grasp_score, axis=1, keepdims=True)
+        grasp_depth = (grasp_depth_class.astype(np.float32)+1) * 0.01
+        grasp_score = np.take_along_axis(grasp_score, grasp_depth_class, axis=1).squeeze(1)
+        grasp_angle = np.take_along_axis(grasp_angle, grasp_depth_class, axis=1).squeeze(1)
+        grasp_width = np.take_along_axis(grasp_width, grasp_depth_class, axis=1).squeeze(1)
+        grasp_tolerance = np.take_along_axis(grasp_tolerance, grasp_depth_class, axis=1).squeeze(1)
+
+        ## slice preds by objectness
+        objectness_pred = np.argmax(objectness_score, axis=0)
+        objectness_mask = (objectness_pred == 1)
+        grasp_score = grasp_score[objectness_mask]
+        grasp_width = grasp_width[objectness_mask]
+        grasp_depth = grasp_depth[objectness_mask]
+        approaching = approaching[objectness_mask]
+        grasp_angle = grasp_angle[objectness_mask]
+        grasp_center = grasp_center[objectness_mask]
+        grasp_tolerance = grasp_tolerance[objectness_mask]
+        grasp_score = grasp_score * grasp_tolerance / GRASP_MAX_TOLERANCE  # 假设GRASP_MAX_TOLERANCE已定义
+
+        ## convert to rotation matrix
+        Ns = grasp_angle.size
+        approaching_ = approaching.reshape(Ns, 3)
+        grasp_angle_ = grasp_angle.reshape(Ns)
+        rotation_matrix = batch_viewpoint_params_to_matrix_np(approaching_, grasp_angle_)  # 需要提供此函数的具体实现
+        rotation_matrix = rotation_matrix.reshape(Ns, 9)
+
+        # merge preds
+        grasp_height = 0.02 * np.ones_like(grasp_score)
+        obj_ids = -1 * np.ones_like(grasp_score)
+        grasp_preds.append(np.concatenate([np.expand_dims(grasp_score, axis=-1),
+                                           np.expand_dims(grasp_width, axis=-1),
+                                           np.expand_dims(grasp_height, axis=-1),
+                                           np.expand_dims(grasp_depth, axis=-1),
+                                           rotation_matrix,
+                                           grasp_center,
+                                           np.expand_dims(obj_ids, axis=-1)], axis=-1))
     return grasp_preds
