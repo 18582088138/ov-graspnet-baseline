@@ -1,0 +1,18 @@
+<CustomLayer name="GroupingOperation" type="SimpleGPU" version="1">
+  <Kernel entry="groupingOperationCLKernel">
+    <Source filename="grouping_operation.cl"/>
+    <Define name='b' param='input0_dim0' type='int'/>
+    <Define name='c' param='input0_dim1' type='int'/>
+    <Define name='n' param='input0_dim2' type='int'/>
+    <Define name="npoints" param="input1_dim1" type="int" default="128"/>
+    <Define name='nsample' param='input1_dim2' type='int' default="64"/>
+  </Kernel>
+  <Buffers>
+    <Tensor name='features' arg-index="0" type="input" port-index="0" format="BFYX"/>
+    <Tensor name='idx' arg-index="1" type="input" port-index="1" format="BFYX"/>
+    <Tensor name='out' arg-index="2" type="output" port-index="0" format="BFYX"/>
+  </Buffers>
+  <CompilerOptions options="-cl-std=CL2.0 -cl-mad-enable -cl-unsafe-math-optimizations -cl-finite-math-only -cl-fast-relaxed-math"/>
+  <!-- <WorkSizes global="F*B, X*Y" local="1, 256"/> -->
+  <WorkSizes global="F*B, X*Y" local="1, 256"/>
+</CustomLayer> 

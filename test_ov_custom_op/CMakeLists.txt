@@ -16,7 +16,7 @@ find_package(OpenVINO REQUIRED PATHS "${OpenVINO_DIR_PY}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native" CACHE STRING "Compiler flags" FORCE)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-set(SRC furthest_point_sampling.cpp gather_operation.cpp three_nn.cpp three_interpolate.cpp cylinder_query.cpp ball_query.cpp grouping_operation.cpp custom_add.cpp ov_extension.cpp)
+set(SRC grouping_operation.cpp ov_extension.cpp)
 
 
 add_library(${TARGET_NAME} MODULE ${SRC})

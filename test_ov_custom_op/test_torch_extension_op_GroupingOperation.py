@@ -18,51 +18,45 @@ from openvino import serialize
 from models.modules import ApproachNet, CloudCrop, OperationNet, ToleranceNet
 from pointnet2.pointnet2_utils import  grouping_operation, cylinder_query
 
-model_name = 'CylinderQuery'
+model_name = 'GroupingOperation'
 device = "CPU"
-ov_extension_lib_path = '../ov_custom_op/build/libopenvino_operation_extension.so'
+ov_extension_lib_path = 'build/libopenvino_operation_extension.so'
 
 print(f"========= {model_name} model initial==========")
 core = Core()
 core.add_extension(ov_extension_lib_path)
 
-radius = torch.tensor(1.0)
-hmin = torch.tensor(-2.0)
-hmax = torch.tensor(2.0)
-nsample = torch.tensor(32)
-xyz = torch.randn([1, 512, 3], dtype=torch.float32)  # 示例数据
-new_xyz = torch.randn([1, 512, 3], dtype=torch.float32)  # 示例数据
-rot = torch.randn([1, 512, 9], dtype=torch.float32)
+features = torch.randn([1, 3, 20000], dtype=torch.float32)
+idx = torch.ones([1, 64, 8], dtype=torch.int32)
 
 class SelfModel(nn.Module):
-    def __init__(self):
+    def __init__(self, input_dim=64, output_dim=192):
         super().__init__()
+        self.linear_layer = nn.Linear(input_dim, output_dim)
+        self.grouping_operation = grouping_operation
 
-    def forward(self, new_xyz, xyz, rot, radius, hmin, hmax, nsample):
-        # new_xyz_add = new_xyz * 2 + torch.randn_like(new_xyz)
-        # xyz_add = xyz + torch.randn_like(xyz)
-        # rot_add = rot*0.5 + torch.randn_like(rot)
-        # idx_output = cylinder_query(new_xyz_add, xyz_add, rot_add, radius, hmin, hmax, nsample)
-        idx_output = cylinder_query(new_xyz, xyz, rot, radius, hmin, hmax, nsample)
-        idx_batch_size, idx_npoint, idx_nsample = idx_output.shape[:3]
-        idx_output = idx_output.float()
-        matrix_multiplication_result = torch.bmm(
-                idx_output.view(idx_batch_size * idx_npoint, idx_nsample, -1), 
-                idx_output.view(idx_batch_size * idx_npoint, -1, idx_nsample))
-        # linear_output = self.linear_layer(matrix_multiplication_result)
-        # output = F.softmax(matrix_multiplication_result, dim=-1)
-        
-        return matrix_multiplication_result
+    def forward(self, features, idx):
+        grouped_xyz = self.grouping_operation(features, idx)
+        # features_add = features + torch.randn_like(features)
+        # idx_times_two = idx * 2
+        # grouped_xyz = self.grouping_operation(features_add, idx_times_two)
+        batch_size, channels, num_points = grouped_xyz.shape[:3]
+        matrix_multiplication_result = torch.bmm(grouped_xyz.view(batch_size * channels, num_points, -1), 
+                                                  grouped_xyz.view(batch_size * channels, -1, num_points))
+        linear_output = self.linear_layer(matrix_multiplication_result)
+        # output = F.softmax(linear_output, dim=-1)
+
+        return linear_output
 
 # 实例化模型
 torch_model = SelfModel()
-torch_cpu_output = torch_model(new_xyz, xyz, rot, radius, hmin, hmax, nsample)
+torch_cpu_output = torch_model(features, idx)
 torch_cpu_result = torch_cpu_output.detach().cpu().numpy()
 print("====Torch CPU result====", torch_cpu_result.shape, torch_cpu_result.dtype, type(torch_cpu_result))
 
 onnx_model_path = f'test_model/torch_2_onnx_sub_{model_name}.onnx'
-onnx_input = (new_xyz, xyz, rot, radius, hmin, hmax, nsample)
-onnx_input_name = ['new_xyz', 'xyz', 'rot', 'radius', 'hmin', 'hmax', 'nsample']
+onnx_input = (features, idx)
+onnx_input_name = ['features', 'idx']
 
 torch.onnx.export(
         torch_model, 
@@ -77,22 +71,10 @@ print(f"========= {model_name} onnx export success==========")
 
 ov_model_path = f'test_model/torch_2_onnx_sub_{model_name}.xml'
 
-ov_input = {'new_xyz':new_xyz,
-            'xyz':xyz,
-            'rot':rot,
-            'radius':radius, 
-            'hmin':hmin,
-            'hmax':hmax,
-            'nsample':nsample,
-            }
-ov_input_name = {'new_xyz': ([1, 512, 3]),
-                'xyz': ([1, 512, 3]),
-                'rot': ([1, 512, 9]),
-                'radius': ([1]),
-                'hmin': ([1]),
-                'hmax': ([1]),
-                'nsample': ([1]),
-                }
+ov_input ={'features':features, 
+            'idx':idx}
+ov_input_name =  {'features': ([1, 3, 20000]),
+                  'idx': ([1, 64, 8])}
 
 ov_model = ov.convert_model(
             # torch_model,       #含custom op的torch model 无法导出graph
@@ -107,7 +89,7 @@ print(f"========= {model_name} openvino export success==========")
 
 print("=======OpenVINO inference========")
 ov_model = core.read_model(ov_model_path)
-ov_compiled_model = core.compile_model(ov_model, device)
+ov_compiled_model = core.compile_model(ov_model, "CPU")
 ov_infer_request = ov_compiled_model.create_infer_request()
 ov_output = ov_infer_request.infer(ov_input)
 
@@ -120,8 +102,7 @@ print("=======OpenVINO inference Success========")
 print("========= pytorch & openvino inference result compare ==========")
 gpu_device = torch.device("cuda:0")
 torch_gpu_model = torch_model.to(gpu_device)
-torch_gpu_output = torch_gpu_model(new_xyz.to(gpu_device), xyz.to(gpu_device), rot.to(gpu_device), 
-                                   radius.to(gpu_device), hmin.to(gpu_device), hmax, nsample.to(gpu_device))
+torch_gpu_output = torch_gpu_model(features.to(gpu_device), idx.to(gpu_device))
 torch_gpu_result = torch_gpu_output.detach().cpu().numpy()
 print("====Torch GPU result====", torch_gpu_result.shape, torch_gpu_result.dtype, type(torch_gpu_result))
 

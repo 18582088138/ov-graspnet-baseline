@@ -244,7 +244,15 @@ three_interpolate = ThreeInterpolate.apply
 class GroupingOperation(Function):
     @staticmethod
     def symbolic(g: torch.Graph, features: torch.Tensor, idx: torch.Tensor) -> torch.Tensor:
-        return g.op("GroupingOperation", features, idx)
+        attrs = {
+            "b_i": 1,
+            "c_i": 3,
+            "n_i": 20000,
+            "npoints_i": 128,
+            "nsample_i": 64,
+        }
+
+        return g.op("GroupingOperation", features, idx, **attrs)
         # return g.op("custom_domain::GroupingOperation", features, idx)
 
     @staticmethod

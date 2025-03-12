@@ -1,0 +1,12 @@
+<CustomLayer name="GroupingOperation" type="SimpleGPU" version="1">
+  <Kernel entry="groupingOperationWrapper">
+    <Source filename="grouping_operation.cl"/>
+  </Kernel>
+  <Buffers>
+    <Tensor arg-index="0" type="input" port-index="0" format="BFYX"/>
+    <Tensor arg-index="1" type="input" port-index="1" format="BFYX"/>
+    <Tensor arg-index="2" type="output" port-index="0" format="BFYX"/>
+  </Buffers>
+  <CompilerOptions options="-cl-mad-enable -cl-unsafe-math-optimizations -cl-finite-math-only -cl-fast-relaxed-math"/>
+  <WorkSizes global="F*B, X*Y" local="1, 256"/>
+</CustomLayer> 

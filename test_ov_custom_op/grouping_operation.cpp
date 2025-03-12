@@ -3,7 +3,9 @@
 using namespace TemplateExtension;
 
 //! [op:ctor]
-GroupingOperation::GroupingOperation(const ov::Output<ov::Node>& features, const ov::Output<ov::Node>& idx) : Op({features, idx}) {
+GroupingOperation::GroupingOperation(const ov::Output<ov::Node>& features, const ov::Output<ov::Node>& idx, 
+                                    int32_t  bx, int32_t  c, int32_t  n,
+                                    int32_t  npoints, int32_t  nsample) : Op({features, idx}), m_b(bx), m_c(c), m_n(n), m_npoints(npoints), m_nsample(nsample) {
     constructor_validate_and_infer_types();
 }
 //! [op:ctor]
@@ -31,7 +33,7 @@ void GroupingOperation::validate_and_infer_types() {
     auto idx_shape = idx_input.get_partial_shape();
     // ov::PartialShape output_shape = {features_shape[0], features_shape[1], idx_shape[1], idx_shape[2]}; // In some cases features_shape[1]=0
     std::cout<<"========= GroupingOperation::validate_and_infer_types::output_shape ======="<<features_shape[0]<<" "<<features_shape[1]<<" "<<idx_shape[1]<<" "<<idx_shape[2]<<std::endl;
-    ov::PartialShape output_shape = {1, -1, idx_shape[1], idx_shape[2]};
+    ov::PartialShape output_shape = {1, features_shape[1], idx_shape[1], idx_shape[2]};
     set_output_type(0, ov::element::f32, output_shape);
 }
 //! [op:validate]
@@ -39,12 +41,17 @@ void GroupingOperation::validate_and_infer_types() {
 //! [op:copy]
 std::shared_ptr<ov::Node> GroupingOperation::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     // OPENVINO_ASSERT(new_args.size() == 2, "Incorrect number of new arguments");
-    return std::make_shared<GroupingOperation>(new_args.at(0), new_args.at(1));
+    return std::make_shared<GroupingOperation>(new_args.at(0), new_args.at(1), m_b, m_c, m_n, m_npoints, m_nsample);
 }
 //! [op:copy]
 
 //! [op:visit_attributes]
 bool GroupingOperation::visit_attributes(ov::AttributeVisitor& visitor) {
+    visitor.on_attribute("b", m_b);
+    visitor.on_attribute("c", m_c);
+    visitor.on_attribute("n", m_n);
+    visitor.on_attribute("npoints", m_npoints);
+    visitor.on_attribute("nsample", m_nsample);
     return true;
 }
 //! [op:visit_attributes]

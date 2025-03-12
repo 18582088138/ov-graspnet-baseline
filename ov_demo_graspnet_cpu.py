@@ -15,7 +15,7 @@ sys.path.append(os.path.join(ROOT_DIR, 'models'))
 sys.path.append(os.path.join(ROOT_DIR, 'dataset'))
 sys.path.append(os.path.join(ROOT_DIR, 'utils'))
 
-from graspnet import GraspNet, pred_decode, pred_decode_np
+from graspnet import GraspNet, pred_decode
 from graspnet_dataset import GraspNetDataset
 from collision_detector import ModelFreeCollisionDetector
 from data_utils import CameraInfo, create_point_cloud_from_depth_image
@@ -144,7 +144,7 @@ def vis_grasps(gg, cloud):
     grippers = gg.to_open3d_geometry_list()
     o3d.visualization.draw_geometries([cloud, *grippers])
 
-def demo(data_dir,infer_count=10):
+def demo(data_dir,infer_count=1):
     ov_model_path = "torch_model_graspnet.xml"
     ov_compiled_model = get_ov_net(ov_model_path)
     end_points, cloud = get_and_process_data(data_dir)

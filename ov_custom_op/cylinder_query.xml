@@ -1,0 +1,20 @@
+<CustomLayer name="CylinderQuery" type="SimpleGPU" version="1">
+  <Kernel entry="cylinderQueryCLKernel">
+    <Source filename="cylinder_query.cl"/>
+    <Define name="radius" type="float" param="radius" default="1.0"/>
+    <Define name="hmin" type="float" param="hmin" default="-2.0"/>
+    <Define name="hmax" type="float" param="hmax" default="2.0"/>
+    <Define name="nsample" type="int32" param="nsample" default="32"/>
+    <Define name="b" type="int32" param="b" default="1"/>
+    <Define name="n" type="int32" param="n" default="512"/>
+    <Define name="m" type="int32" param="m" default="512"/>
+  </Kernel>
+  <Buffers>
+    <Tensor arg-index="0" type="input" port-index="0" format="BFYX"/>
+    <Tensor arg-index="1" type="input" port-index="1" format="BFYX"/>
+    <Tensor arg-index="2" type="input" port-index="2" format="BFYX"/>
+    <Tensor arg-index="3" type="output" port-index="0" format="BFYX"/>
+  </Buffers>
+  <CompilerOptions options="-cl-mad-enable -cl-unsafe-math-optimizations -cl-finite-math-only -cl-fast-relaxed-math"/>
+  <WorkSizes global="F*B, (Y+255)/256*32*16" local="1, 256"/>
+</CustomLayer> 

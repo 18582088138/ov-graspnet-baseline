@@ -1,0 +1,26 @@
+__kernel void groupingOperationCLKernel(
+    const int b, const int c, const int n, const int npoint,  const int nsample,
+    const __global float* features,
+    const __global int* idx,
+    __global float* output
+) {
+    // 计算全局ID
+    int gid = get_global_id(0);
+    printf("====gid: %d====\n", gid);
+    
+    if (gid >= b * c * npoint * nsample) return;
+
+    // 计算索引
+    int sample_index = gid % nsample;
+    int point_index = (gid / nsample) % npoint;
+    int channel_index = (gid / (npoint * nsample)) % c;
+    int batch_index = gid / (c * npoint * nsample);
+
+    // 获取当前batch、channel、point和sample对应的特征值和索引
+    int idx_offset = batch_index * npoint * nsample + point_index * nsample + sample_index;
+    int feature_offset = batch_index * c * n + channel_index * n;
+    int out_offset = batch_index * c * npoint * nsample + channel_index * npoint * nsample + point_index * nsample + sample_index;
+
+    int ii = idx[idx_offset];
+    output[out_offset] = features[feature_offset + ii];
+}
